@@ -3,16 +3,21 @@
 
 import sqlparse
 import time
+# from test import eval_query
+# import test
 # import getch
 
 SQLCommand = ['CREATE','SHOW','DESCRIBE'] # keyWord is not case sensitive
 Datatype = ['INT','STRING']
 sql_query = "CREATE TABLE people { key_no INT NOT NULL, first_name INT NOT NULL, last_name INT NOT NULL, primary_key (key_no)};"
 query_tokens = []
-quitting = False
+quitting = False 
 PROMPT = "-> "
 PROMPT2 = "> "
 
+tables = {}
+
+# Begin Parsing Functions
 def readInput():
     global sql_query
     sql_query = ""
@@ -39,7 +44,9 @@ def readInput2():
     readInput2()
 
 def filter():
+    global sql_query
     global query_tokens
+    sql_query = sqlparse.format(sql_query,reindent=False, keyword_case='upper')
     query_tokens = []
     parsed = sqlparse.parse(sql_query)
     for statement in parsed:
@@ -47,37 +54,20 @@ def filter():
             if token.value.strip():
                 query_tokens.append(token.value)
 
-def isValidCommand():
-    global SQLCommand
-    global parsedList
-    for command in SQLCommand:
-        if command == parsedList[0].upper():
-            return True
-    return False
+# End of parsing functions
 
-def Create():
-    if parsedList[1].upper() != "TABLE":
-        print("")
-    return
-    
-def Show():
-    return
+## Begin evaluation functions
+def find_operation():
+    try:
+        return SQLCommand.index(query_tokens[0])
+    except ValueError:
+        return -1
+        
 
-def Describe():
+def eval_query():
+    optr = find_operation()
+    print(optr)
     return
-
-def eval():
-    global parsedList
-    if not isValidCommand():
-        print("Invalid SQL syntax")
-        return
-    pos = SQLCommand.index(parsedList[0].upper())
-    if pos == 0:
-        Create()
-    if pos == 1:
-        Show()
-    if pos == 2:
-        Describe()
 
 
 while quitting == False:
@@ -87,6 +77,7 @@ while quitting == False:
     print(query_tokens)
     if query_tokens[0] == "quit":
         break
+    eval_query()
     
 
 
