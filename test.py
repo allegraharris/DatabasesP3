@@ -29,7 +29,9 @@
 
 # # research on BTree
 import re
-
+import sqlparse
+import pprint
+import json
 # input_string = "(1,2,3), (2,3,4), (2,4,5)"
 
 # # Use regular expression to split by commas outside parentheses
@@ -59,3 +61,24 @@ tuple1 = tuple({1, 2, 3})
 tuple2 = tuple({2,3,4})
 if tuple1 == tuple2:
     print("they are same")
+
+
+
+query = "select id, name, school from mytable where id = 5;"
+
+parsed = sqlparse.parse(query)
+query_tokens = []
+
+for statement in parsed:
+        for token in statement.tokens:
+            print(token)
+            if token.value.strip():
+                query_tokens.append(token.value)
+
+#for token in query_tokens:
+#     print(token)
+
+#---------------------------------------
+
+
+

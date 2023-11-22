@@ -16,12 +16,13 @@ import sqlparse
 import time
 import re
 from BTrees._OOBTree import OOBTree
+from treelib import Node, Tree
 # from test import eval_query
 # import test
 # import getch
 
-keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','INT','STRING','PRIMARY','FOREIGN','KEY']
-sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT'] # keyWord is not case sensitive
+keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','INT','STRING','PRIMARY','FOREIGN','KEY', 'WHERE']
+sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT', 'SELECT'] # keyWord is not case sensitive
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
 sql_query = "CREATE TABLE people ( key_no INT NOT NULL, first_name INT NOT NULL, last_name INT NOT NULL, primary_key (key_no) );"
@@ -253,6 +254,10 @@ def eval_query():
             if attribute.strip() not in databases[table_name][0]:
                 raise TABLE_EXIST(f"Column {attribute.strip()} does not exist")
         return insert(table_name)
+    if optr == 4:
+        
+
+            
     raise Syntax_Error("Unknown SQL Command")
 
 # R is our relations
@@ -276,6 +281,47 @@ def print_table(R):
     for line in message:
         print(line)
     return 
+
+def select():
+    tree = createQueryTree()
+    optimiseTree
+
+def createQueryTree():
+    OptimiserTree = Tree()
+    i = 0
+    while i < len(query_tokens):
+        if(query_tokens[i] == 'SELECT'):
+            #If it is a wildcard select 
+            if(query_tokens[i+1] == '*'):
+                columns_list = ''
+                j = i+1
+                while(query_tokens[j] != 'FROM'):
+                    j+=1
+                    table_name = query_tokens[j+1]
+                    wildcard_columns = databases[table_name][0].keys #need to change internal structure but this will represent column names
+                    k = 0
+                    while(k < len(wildcard_columns)):
+                        columns_list += wildcard_columns[k]
+                        if(k != len(wildcard_columns) - 1):
+                            columns_list += ', '
+                        k+=1
+                OptimiserTree.create_node('PROJECT', str(columns_list)) # root node (pre-optimisations)
+            else: 
+                OptimiserTree.create_node('PROJECT', str(query_tokens[i+1])) # root node (pre-optimisations)
+            i+=1
+        elif(query_tokens[i] == 'FROM'):
+            OptimiserTree.create_node('TABLE NAME', query_tokens[i+1], parent='PROJECT')
+        elif(query_tokens[i].startswith('WHERE')):
+            if('AND' in query_tokens[i]):
+                split_where = query_tokens[i].split('AND')
+            elif('OR' in query_tokens[i]):
+                split_where = query_tokens[i].split('OR')
+            OptimiserTree.create_node('SELECT(' )
+        return OptimiserTree
+
+def optimiseTree():
+    print("optimise tree")
+
 
 while quitting == False:
     try:
