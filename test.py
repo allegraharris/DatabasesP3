@@ -64,9 +64,11 @@ if tuple1 == tuple2:
 
 
 
-query = "select id, name, school from mytable where id = 5;"
+query = "SELECT table1.age, table2.name FROM table1, table2 JOIN table1 ON table1.age = table2.age WHERE age > 5 AND name = 'a'"
+query2 = "SELECT age, id, height FROM table1 where age > 5 and name = 'a';"
 
-parsed = sqlparse.parse(query)
+
+parsed = sqlparse.parse(query2)
 query_tokens = []
 
 for statement in parsed:

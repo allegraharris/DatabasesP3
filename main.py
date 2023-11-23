@@ -23,6 +23,7 @@ from treelib import Node, Tree
 
 keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','INT','STRING','PRIMARY','FOREIGN','KEY', 'WHERE']
 sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT', 'SELECT'] # keyWord is not case sensitive
+LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
 sql_query = "CREATE TABLE people ( key_no INT NOT NULL, first_name INT NOT NULL, last_name INT NOT NULL, primary_key (key_no) );"
@@ -60,6 +61,11 @@ class Duplicate_Item(Exception):
 
 class TABLE_EXIST(Exception):
     def __init__(self, message="Table not exist"):
+        self.message = message
+        super().__init__(self.message)
+
+class Unsupported_Functionality(Exception):
+    def __init__(self, message="Unsupported functionality"):
         self.message = message
         super().__init__(self.message)
 
@@ -255,9 +261,9 @@ def eval_query():
                 raise TABLE_EXIST(f"Column {attribute.strip()} does not exist")
         return insert(table_name)
     if optr == 4:
+        if(validateSelect()):
+            print('PASSED!')
         
-
-            
     raise Syntax_Error("Unknown SQL Command")
 
 # R is our relations
@@ -285,6 +291,109 @@ def print_table(R):
 def select():
     tree = createQueryTree()
     optimiseTree
+
+def validateSelect(): 
+    length = len(query_tokens)
+    select_columns = []
+    table_name = ''
+
+    #Must have at least basic format of SELECT x FROM table
+    if(length < 4):
+        raise Syntax_Error("Syntax Error: invalid select")
+
+    #Either a join or selecting from many tables
+    if('.' in query_tokens[1]):
+        if(length >= 5):
+            if(query_tokens[4] == 'JOIN'):
+                return validateJoin()
+            else:
+                return validateMultiSelect()
+        else:
+            return validateMultiSelect()
+    #wildcard select        
+    elif(query_tokens[1] == '*'):
+        print('modify query_tokens[1] to include all columns')
+    elif('(' in query_tokens[1]):
+        if(')' in query_tokens[1]):
+            validateAggregateFunction()
+        else:
+            raise Syntax_Error("Syntax Error: no closing parentheses")
+    else: 
+        select_columns = [item.strip() for item in query_tokens[1].split(',')]
+    
+    if(query_tokens[2] != 'FROM'):
+        raise Syntax_Error("Syntax Error: must include FROM")
+    
+    #if the select doesn't follow format table_name.column_name but is selecting from multiple tables
+    if(',' in query_tokens[3]):
+        raise Syntax_Error("Syntax Error: ambiguous column(s) selected")
+    else:
+        if(query_tokens[3] not in databases):
+            raise TABLE_EXIST("Table does not exist")
+        #validate all columns exist in the table
+        else: 
+            table_name = query_tokens[3]
+            for column in select_columns:
+                if(column not in databases[table_name][0]):
+                    raise Syntax_Error('Column ' + column + ' does not exist')
+
+    if(length >= 5):
+        if(query_tokens[4].startswith('WHERE')):
+            return validateWhere(table_name, query_tokens[4])
+        elif(query_tokens[4].strip() != ';'):
+            raise Syntax_Error('Invalid syntax: ' + query_tokens[4])
+    
+    return True
+    
+def validateJoin():
+    print('join')
+
+def validateMultiSelect():
+    print('validate multi select')
+
+def validateWhere(table_name, where_clause):
+    numChars = len(where_clause)
+    numOperators = 0
+    numConditions = 0
+    cols = []
+
+    cleanClause = where_clause[6:numChars-1] #removing where and semi-colon
+
+    #counting number of conidtions
+    numConditions = cleanClause.count('AND') + cleanClause.count('OR')
+
+    #counting number of operators 
+    for char in cleanClause:
+        if(char in LOGICAL_OPERATORS):
+            numOperators+=1
+
+    if(numConditions > 1 or numOperators > 2):
+        raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
+    
+    for op in LOGICAL_OPERATORS:
+        index = cleanClause.find(op)
+        if index != -1 and index < min_index:
+            min_index = index
+
+    cols += cleanClause[:min_index].strip()
+
+    if(numOperators > 1):
+        cleanClause = cleanClause[min_index:]
+
+        for op in LOGICAL_OPERATORS:
+            index = cleanClause.find(op)
+            if index != -1:
+                break
+    
+    cols += cleanClause[:index].strip()
+
+    for col in cols:
+        if(col not in databases[table_name][0]):
+            raise Syntax_Error('Column ' + col + ' does not exist')
+
+    
+def validateAggregateFunction():
+    print('validate aggregate function')
 
 def createQueryTree():
     OptimiserTree = Tree()
