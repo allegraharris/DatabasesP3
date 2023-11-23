@@ -358,6 +358,7 @@ def validateWhere(table_name, where_clause):
     cols = []
 
     cleanClause = where_clause[6:numChars-1] #removing where and semi-colon
+    print('CLEAN CLAUSE', cleanClause)
 
     #counting number of conidtions
     numConditions = cleanClause.count('AND') + cleanClause.count('OR')
@@ -370,26 +371,16 @@ def validateWhere(table_name, where_clause):
     if(numConditions > 1 or numOperators > 2):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
     
-    for op in LOGICAL_OPERATORS:
-        index = cleanClause.find(op)
-        if index != -1 and index < min_index:
-            min_index = index
-
-    cols += cleanClause[:min_index].strip()
-
-    if(numOperators > 1):
-        cleanClause = cleanClause[min_index:]
-
-        for op in LOGICAL_OPERATORS:
-            index = cleanClause.find(op)
-            if index != -1:
-                break
-    
-    cols += cleanClause[:index].strip()
+    #isolating column names
+    pattern = r'\b(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
+    cols = re.findall(pattern, cleanClause)
 
     for col in cols:
+        print(col)
         if(col not in databases[table_name][0]):
             raise Syntax_Error('Column ' + col + ' does not exist')
+        
+    return True
 
     
 def validateAggregateFunction():
