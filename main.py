@@ -309,10 +309,11 @@ def validateSelect():
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
                 return validateJoin()
-            else:
+            elif(',' in query_tokens[3]):
                 return validateMultiSelect()
-        else:
-            return validateMultiSelect()
+            else:
+                select_columns = validateSelectWithTableNames()
+                    
     #wildcard select        
     elif(query_tokens[1] == '*'):
         table_name = query_tokens[3]
@@ -435,6 +436,36 @@ def validateJoin():
             raise Syntax_Error('Syntax Error: ' + query_tokens[8])
         
     return True
+
+def validateSelectWithTableNames():
+    table_column_dict = {}
+    pairs = query_tokens[1].split(', ')
+    select_columns = []
+
+    for pair in pairs:
+        table_name, column_name = pair.strip().split('.')
+        if table_name in table_column_dict:
+            table_column_dict[table_name].append(column_name)
+        else:
+            table_column_dict[table_name] = [column_name]
+
+    if(len(table_column_dict) > 1):
+        raise Syntax_Error("Syntax Error: cannot select from a table that hasn't been specified")
+    else:
+        table_nm = str(next(iter(table_column_dict.keys())))
+
+        if(table_nm not in databases):
+            raise TABLE_EXIST('Table does not exist')
+        
+        if(table_nm != query_tokens[3]):
+            raise Syntax_Error("Syntax Error: cannot select from a table that hasn't been specified")
+        
+        for column in table_column_dict[table_nm]:
+            if(column not in databases[table_nm][0]):
+                raise Syntax_Error("Syntax Error: Column " + column + " does not exist")
+            select_columns.append(column)
+
+    return select_columns
             
     
 def validateWildcardJoin():
