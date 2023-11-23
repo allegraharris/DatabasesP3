@@ -263,6 +263,8 @@ def eval_query():
     if optr == 4:
         if(validateSelect()):
             print('PASSED!')
+        else:
+            print('FAILED!')
         
     raise Syntax_Error("Unknown SQL Command")
 
@@ -296,6 +298,7 @@ def validateSelect():
     length = len(query_tokens)
     select_columns = []
     table_name = ''
+    wildcardFlag = False
 
     #Must have at least basic format of SELECT x FROM table
     if(length < 4):
@@ -312,7 +315,19 @@ def validateSelect():
             return validateMultiSelect()
     #wildcard select        
     elif(query_tokens[1] == '*'):
-        print('modify query_tokens[1] to include all columns')
+        table_name = query_tokens[3]
+        #selecting wildcard from multiple tables
+        if(length >= 5):
+            if(query_tokens[4] == 'JOIN'):
+                return validateWildcardJoin()
+        if(',' in table_name):
+            return validateMultiSelectWildcard()
+        if(table_name not in databases):
+            raise TABLE_EXIST("Table does not exist")
+        #validate all columns exist in the table
+        else:
+            select_columns = databases[table_name][0] #all columns in database
+            wildcardFlag = True
     elif('(' in query_tokens[1]):
         if(')' in query_tokens[1]):
             validateAggregateFunction()
@@ -330,35 +345,114 @@ def validateSelect():
     else:
         if(query_tokens[3] not in databases):
             raise TABLE_EXIST("Table does not exist")
-        #validate all columns exist in the table
-        else: 
+        #validate all columns exist in the table (we already know they exist if we did a wildcard select)
+        elif(wildcardFlag != True): 
             table_name = query_tokens[3]
             for column in select_columns:
                 if(column not in databases[table_name][0]):
-                    raise Syntax_Error('Column ' + column + ' does not exist')
+                    raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
 
     if(length >= 5):
         if(query_tokens[4].startswith('WHERE')):
-            return validateWhere(table_name, query_tokens[4])
+            return validateWhere([], table_name, query_tokens[4], False)
         elif(query_tokens[4].strip() != ';'):
-            raise Syntax_Error('Invalid syntax: ' + query_tokens[4])
+            raise Syntax_Error('Syntax Error: ' + query_tokens[4])
     
     return True
     
 def validateJoin():
-    print('join')
+    if(len(query_tokens) < 8):
+        raise Syntax_Error('Syntax Error: Invalid join syntax')
+
+    #isolating each table_name.column_name
+    pairs = query_tokens[1].split(',')
+    table_column_dict = {}
+    joining_tables = []
+    
+    for pair in pairs:
+        #separate table and column names
+        table, column = pair.strip().split('.')
+        
+        #check if table exists in dict
+        if table in table_column_dict:
+            table_column_dict[table].append(column)
+        else:
+            #if table doesn't exist create new entry 
+            table_column_dict[table] = [column]
+
+    #validate all tables and their columns
+    for table in table_column_dict:
+        if(table not in databases):
+            raise TABLE_EXIST("Table does not exist")
+        for column in table_column_dict[table]:
+            if(column not in databases[table][0]):
+                raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
+            
+    #we're only selecting from one table
+    if(',' not in query_tokens[3]):
+        joining_tables = [query_tokens[3]]
+    #selecting from multiple tables
+    else: 
+        joining_tables = [value.strip() for value in query_tokens[3].split(',')]
+
+    #adding the table we're joining on
+    joining_tables.append(query_tokens[5])
+
+    #checking that tables we're joining on exist 
+    for table in joining_tables:
+        if(table not in databases):
+            raise TABLE_EXIST("THIS 2 Table does not exist")
+
+    #checking that we're selecting from tables that are specified in the join
+    for table in table_column_dict:
+        if(table not in joining_tables):
+            raise Syntax_Error('Syntax Error: Cannot select from a table that is not specified in the join')
+    
+    if(query_tokens[6] != 'ON'):
+        raise Syntax_Error('Syntax Error: Invalid join syntax')
+    
+    #must join on a certain column
+    if('=' not in query_tokens[7]):
+        raise Syntax_Error('Syntax Error: Invalid join syntax')
+    
+    #verifying that tables and their columns that we're joining on are valid
+    joinPairs = query_tokens[7].strip().split('=')
+
+    for pair in joinPairs:
+        table, column = pair.strip().split('.')
+
+        if(table not in joining_tables):
+            raise Syntax_Error('Syntax Error: Invalid join syntax')
+        
+        if(column not in databases[table][0]):
+            raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
+    
+    #checking if it also has a whevre clause 
+    if(len(query_tokens) > 8):
+        if(query_tokens[8].startswith('WHERE')):
+            return validateWhere(joining_tables, ' ', query_tokens[8], True)
+        elif(query_tokens[8] != ';'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[8])
+        
+    return True
+            
+    
+def validateWildcardJoin():
+    print('validate wildcard join')
 
 def validateMultiSelect():
     print('validate multi select')
 
-def validateWhere(table_name, where_clause):
+def validateMultiSelectWildcard():
+    print('wildcard')
+
+def validateWhere(joining_tables, table_name, where_clause, join):
     numChars = len(where_clause)
     numOperators = 0
     numConditions = 0
     cols = []
 
     cleanClause = where_clause[6:numChars-1] #removing where and semi-colon
-    print('CLEAN CLAUSE', cleanClause)
 
     #counting number of conidtions
     numConditions = cleanClause.count('AND') + cleanClause.count('OR')
@@ -371,17 +465,28 @@ def validateWhere(table_name, where_clause):
     if(numConditions > 1 or numOperators > 2):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
     
-    #isolating column names
-    pattern = r'\b(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
-    cols = re.findall(pattern, cleanClause)
+    if(join):
+        #isolating column names using regex
+        pattern = r'(\w+)\.(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
+        tables_and_columns = re.findall(pattern, cleanClause)
 
-    for col in cols:
-        print(col)
-        if(col not in databases[table_name][0]):
-            raise Syntax_Error('Column ' + col + ' does not exist')
+        for pair in tables_and_columns:
+            if(pair[0] not in databases):
+                raise TABLE_EXIST('Table ' + pair[0] + ' does not exist')
+            if(pair[0] not in joining_tables): 
+                raise Syntax_Error('Syntax Error: invalid join syntax')
+            if(pair[1] not in databases[pair[0]][0]):
+                raise Syntax_Error('Column ' + pair[1] + ' does not exist')
+    else: 
+        #isolating column names using regex
+        pattern = r'\b(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
+        cols = re.findall(pattern, cleanClause)
+
+        for col in cols:
+            if(col not in databases[table_name][0]):
+                raise Syntax_Error('Column ' + col + ' does not exist')
         
     return True
-
     
 def validateAggregateFunction():
     print('validate aggregate function')
