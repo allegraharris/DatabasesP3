@@ -291,8 +291,10 @@ def print_table(R):
     return 
 
 def select():
-    tree = createQueryTree()
-    optimiseTree
+    print('select')
+
+### SELECTION VALIDATION FUNCTIONS ###
+#------------------------------------------------------------------------------#
 
 def validateSelect(): 
     length = len(query_tokens)
@@ -396,13 +398,16 @@ def validateJoin():
     else: 
         joining_tables = [value.strip() for value in query_tokens[3].split(',')]
 
+    if(',' in query_tokens[5]):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[5])
+
     #adding the table we're joining on
     joining_tables.append(query_tokens[5])
 
     #checking that tables we're joining on exist 
     for table in joining_tables:
         if(table not in databases):
-            raise TABLE_EXIST("THIS 2 Table does not exist")
+            raise TABLE_EXIST("Table does not exist")
 
     #checking that we're selecting from tables that are specified in the join
     for table in table_column_dict:
@@ -428,10 +433,65 @@ def validateJoin():
         if(column not in databases[table][0]):
             raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
     
-    #checking if it also has a whevre clause 
+    #checking if it also has a where clause 
     if(len(query_tokens) > 8):
         if(query_tokens[8].startswith('WHERE')):
             return validateWhere(joining_tables, ' ', query_tokens[8], True)
+        elif(query_tokens[8] != ';'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[8])
+        
+    return True
+
+def validateWildcardJoin():
+    tables = []
+
+    if(len(query_tokens) < 8):
+        raise Syntax_Error('Syntax Error: Invalid join syntax')
+    
+    if(query_tokens[2] != 'FROM'):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+    
+     #we're only selecting from one table
+    if(',' not in query_tokens[3]):
+        tables = [query_tokens[3]]
+    #selecting from multiple tables
+    else: 
+        tables = [value.strip() for value in query_tokens[3].split(',')]
+
+    if(',' in query_tokens[5]):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[5])
+
+    #adding the table we're joining on
+    tables.append(query_tokens[5])
+
+    #checking that tables we're joining on exist 
+    for table in tables:
+        if(table not in databases):
+            raise TABLE_EXIST("Table does not exist")
+        
+    if(query_tokens[6] != 'ON'):
+        raise Syntax_Error('Syntax Error: Invalid join syntax')
+    
+    #must join on a certain column
+    if('=' not in query_tokens[7]):
+        raise Syntax_Error('Syntax Error: Invalid join syntax')
+    
+    #verifying that tables and their columns that we're joining on are valid
+    joinPairs = query_tokens[7].strip().split('=')
+
+    for pair in joinPairs:
+        table, column = pair.strip().split('.')
+
+        if(table not in databases):
+            raise TABLE_EXIST('Table does not exist')
+        
+        if(column not in databases[table][0]):
+            raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
+        
+    #checking if it also has a where clause 
+    if(len(query_tokens) > 8):
+        if(query_tokens[8].startswith('WHERE')):
+            return validateWhere(tables, ' ', query_tokens[8], True)
         elif(query_tokens[8] != ';'):
             raise Syntax_Error('Syntax Error: ' + query_tokens[8])
         
@@ -466,10 +526,6 @@ def validateSelectWithTableNames():
             select_columns.append(column)
 
     return select_columns
-            
-    
-def validateWildcardJoin():
-    print('validate wildcard join')
 
 def validateMultiSelect():
     print('validate multi select')
@@ -522,6 +578,12 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 def validateAggregateFunction():
     print('validate aggregate function')
 
+### END OF SELECTION VALIDATION FUNCTIONS ###
+#------------------------------------------------------------------------------#
+
+### OPTIMISATION FUNCTIONS ###
+#------------------------------------------------------------------------------#
+
 def createQueryTree():
     OptimiserTree = Tree()
     i = 0
@@ -558,6 +620,8 @@ def createQueryTree():
 def optimiseTree():
     print("optimise tree")
 
+### END OF OPTIMISATION FUNCTIONS ###
+#------------------------------------------------------------------------------#
 
 while quitting == False:
     try:
