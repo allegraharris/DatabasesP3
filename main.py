@@ -538,7 +538,6 @@ def validateSelectWithTableNames():
 def validateMultiSelect():
     table_column_dict = {}
     pairs = query_tokens[1].split(',')
-    select_columns = []
 
     for pair in pairs:
         try: 
@@ -578,10 +577,23 @@ def validateMultiSelect():
 
     return True 
         
-    
-
 def validateMultiSelectWildcard():
-    print('wildcard')
+    if(query_tokens[2] != 'FROM'):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+    
+    from_tables = [value.strip() for value in query_tokens[3].split(',')]
+
+    for table in from_tables: 
+        if(table not in databases):
+            raise TABLE_EXIST('Table does not exist')
+        
+    if(len(query_tokens) >= 5):
+        if(query_tokens[4].startswith('WHERE')):
+            validateWhere(from_tables, ' ', query_tokens[4], True) #this isn't a join but looks the same to the where clause parser
+        elif(query_tokens[4] != ';'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[4])
+        
+    return True
 
 def validateWhere(joining_tables, table_name, where_clause, join):
     numChars = len(where_clause)
