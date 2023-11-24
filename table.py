@@ -14,6 +14,7 @@ class Table:
         self.keys = set()
         self.indexing = {}
         self.tuples = list()
+        self.size = 0
     
     def add_column(self,col_name,col_data):
         if col_name in self.column_data:

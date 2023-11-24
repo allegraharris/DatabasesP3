@@ -21,7 +21,12 @@ class Duplicate_Item(Exception):
         self.message = message
         super().__init__(self.message)
 
-class TABLE_EXIST(Exception):
+class Table_Exist(Exception):
     def __init__(self, message="Table not exist"):
+        self.message = message
+        super().__init__(self.message)
+
+class Unsupported_Functionality(Exception):
+    def __init__(self, message="Unsupported functionality"):
         self.message = message
         super().__init__(self.message)

@@ -1,30 +1,28 @@
-""" DatabasesP3 Design Ideas
+# DatabasesP3 Design Ideas
 ### **Assumption 1**: Only one valid and complete input is taken at one time
 ### **Assumption 2**: All of the key words are case insensitive, but everything else is sensitive
 ### **Assumption 3**: Assume we only need primary indexing structure for single key attribute
-### **Assumption 3**: There is only one database that holds all of the tables
 ### **table definition**: 
-    table = [ columns, column, primary_key, indexing, tuple_1, tuple_2, ......, tuple_n ]
-    columns = { col_1:[<type>,<primary_key[yes:1,no:0]>,<index>], col_2, ......., col_n }
-    column = [ col_1, col_2, ......, col_n]
-    primary = { primary_key_1, primary_key_2, ......, primary_key_n }
-    indexing = { key_1:tuple_1, key_2:tuple_2, ......., key_n:tuple_n }
-    tuple_1 = [ col_1.value, col_2.value, ......, col_n.value ], tuple_2, ......, tuple_n
+#   table = [ columns, column, primary_key, indexing, tuple_1, tuple_2, ......, tuple_n ]
+#   columns = { col_1:[<type>,<primary_key[yes:1,no:0]>,<index>], col_2, ......., col_n }
+#   column = [ col_1, col_2, ......, col_n]
+#   primary = { primary_key_1, primary_key_2, ......, primary_key_n }
+#   indexing = { key_1:tuple_1, key_2:tuple_2, ......., key_n:tuple_n }
+#   tuple_1 = [ col_1.value, col_2.value, ......, col_n.value ], tuple_2, ......, tuple_n
 ### **
 # create,show,describe,insert does not need query optimizer
-"""
 
 import sqlparse
 import time
 import re
 from BTrees._OOBTree import OOBTree
 from table import Table
-# from test import eval_query
-# import test
-# import getch
+from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Table_Exist, Unsupported_Functionality
 
-keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','INT','STRING','PRIMARY','FOREIGN','KEY']
-sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT'] # keyWord is not case sensitive
+
+keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','INT','STRING','PRIMARY','FOREIGN','KEY', 'WHERE']
+sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT', 'SELECT']
+LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
 sql_query = "CREATE TABLE people ( key_no INT NOT NULL, first_name INT NOT NULL, last_name INT NOT NULL, primary_key (key_no) );"
@@ -33,42 +31,7 @@ quitting = False
 PROMPT = "-> "
 PROMPT2 = "> "
 
-databases = {}
-describe_columns = { 'Field':['STRING',0], 'Type':['STRING',0], 'Primary':['STRING',0]} # describe
-# Column 
-
-# general syntax error
-# class Syntax_Error(Exception):
-#     def __init__(self, message="Syntax Error"):
-#         self.message = message
-#         super().__init__(self.message)
-
-# # Error if non-keyword use preserved keyword
-# class Keyword_Used(Exception):
-#     def __init__(self, message="Keyword_Used"):
-#         self.message = message
-#         super().__init__(self.message)
-
-# class Invalid_Type(Exception):
-#     def __init__(self, message="Invalid Data Type"):
-#         self.message = message
-#         super().__init__(self.message)
-
-# # Error if item is repeated. Such as repeated primary key, repeated column, etc.
-# class Duplicate_Item(Exception):
-#     def __init__(self, message="Duplicate Item"):
-#         self.message = message
-#         super().__init__(self.message)
-
-# class TABLE_EXIST(Exception):
-#     def __init__(self, message="Table not exist"):
-#         self.message = message
-#         super().__init__(self.message)
-
-class Unsupported_Functionality(Exception):
-    def __init__(self, message="Unsupported functionality"):
-        self.message = message
-        super().__init__(self.message)
+database = {} #
 
 # Begin Parsing Functions
 def readInput():
@@ -223,6 +186,7 @@ def insert(table_name):
         databases[table_name][3][tuple(tuple_keys)] = Tuple
     return [f"Query OK, {num} rows affected"]
     
+
 def eval_query():
     optr = find_operation()
     # print(optr)
@@ -738,14 +702,14 @@ while quitting == False:
     try:
         readInput()
         filter()
-        # print(sql_query)
-        # print(query_tokens)
+        print(sql_query)
+        print(query_tokens)
         if query_tokens[0] == "quit":
             break
-        start_time = time.time()
-        print_table(eval_query())
-        end_time = time.time()
-        print(f"Time: {end_time-start_time:.3f}s")
+        # start_time = time.time()
+        # print_table(eval_query())
+        # end_time = time.time()
+        # print(f"Time: {end_time-start_time:.3f}s")
         # print(databases)
     # throw errors
     except Syntax_Error as e:
@@ -756,11 +720,10 @@ while quitting == False:
         print(f"{e}")
     except Duplicate_Item as e:
         print(f"{e}")
-    except TABLE_EXIST as e:
+    except Table_Exist as e:
         print(f"{e}")
-for table in databases.keys():
-    print(databases[table])
+    except Unsupported_Functionality as e:
+        print(f"{e}")
+for table in database.keys():
+    print(database[table])
     
-
-
-
