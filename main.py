@@ -733,33 +733,33 @@ def optimiseTree():
 
 ### END OF OPTIMISATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
-
-while quitting == False:
-    try:
-        readInput()
-        filter()
-        # print(sql_query)
-        # print(query_tokens)
-        if query_tokens[0] == "quit":
-            break
-        start_time = time.time()
-        print_table(eval_query())
-        end_time = time.time()
-        print(f"Time: {end_time-start_time:.3f}s")
-        # print(databases)
-    # throw errors
-    except Syntax_Error as e:
-        print(f"{e}")
-    except Keyword_Used as e:
-        print(f"{e}")
-    except Invalid_Type as e:
-        print(f"{e}")
-    except Duplicate_Item as e:
-        print(f"{e}")
-    except TABLE_EXIST as e:
-        print(f"{e}")
-for table in databases.keys():
-    print(databases[table])
+if __name__ == "__main__":
+    while quitting == False:
+        try:
+            readInput()
+            filter()
+            # print(sql_query)
+            # print(query_tokens)
+            if query_tokens[0] == "quit":
+                break
+            start_time = time.time()
+            print_table(eval_query())
+            end_time = time.time()
+            print(f"Time: {end_time-start_time:.3f}s")
+            # print(databases)
+        # throw errors
+        except Syntax_Error as e:
+            print(f"{e}")
+        except Keyword_Used as e:
+            print(f"{e}")
+        except Invalid_Type as e:
+            print(f"{e}")
+        except Duplicate_Item as e:
+            print(f"{e}")
+        except TABLE_EXIST as e:
+            print(f"{e}")
+    for table in databases.keys():
+        print(databases[table])
     
 
 
