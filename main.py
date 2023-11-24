@@ -229,9 +229,9 @@ def parse_columns(table):
 def describe_table(table_name):
     my_table = [describe_columns,list(),set(),dict()]
     table = databases[table_name]
-    columns = table[0]
-    for column in columns.keys():
-        my_table.append([column,columns[column][0],columns[column][1]])
+    columns = table.columns #table[0]
+    for column in columns:
+        my_table.append([column, columns[column][0],columns[column][1]])
     return my_table
 
 def insert(table_name):
@@ -240,23 +240,26 @@ def insert(table_name):
     tuples = query_tokens[3][6:len(query_tokens[3])].strip()
     # print(tuples)
     items = re.split(r',\s*(?![^()]*\))',tuples)
-    columns = databases[table_name][0]
-    column = databases[table_name][1]
-    primary_keys = databases[table_name][2]
+    columns = databases[table_name].columns #databases[table_name][0]
+    column = databases[table_name].column #databases[table_name][1]
+    primary_keys = databases[table_name].primary
     # print(tuples)
     # print(values)
     for item in items:
         values = re.split(r',\s*(?=(?:[^\'"]*[\'"][^\'"]*[\'"])*[^\'"]*$)',item[1:len(item)-1].strip())
-        Tuple = list()
+        Tuple = {} #Tuple = list()
         index = 0
         for value in values:
             if columns[column[index]][0] == 'INT':
-                Tuple.append(int(value.strip()))
+                Tuple[column[index]] = (int(value.strip())) #Tuple.append(int(value.strip()))
             else:
-                Tuple.append(value.strip()[1:len(value.strip())-1])
+                Tuple[column[index]] = value.strip()[1:len(value.strip())-1] #Tuple.append(value.strip()[1:len(value.strip())-1])
             index += 1
         add_tuples.append(Tuple)
         num += 1
+    
+    #I HAVE GOTTEN UP TO HERE
+    
     for Tuple in add_tuples:
         databases[table_name].append(Tuple)
         tuple_keys = set()
