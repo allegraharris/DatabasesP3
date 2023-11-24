@@ -12,10 +12,34 @@
 ### **
 # create,show,describe,insert does not need query optimizer
 
+### NEW DESIGN ###
+
+# databases = { table_name : table_object, table_name2 : table_object 2...}
+
+# table (class) has attributes columns, column, primary_key, size and tuples (hashmap of hashmaps)
+
+# columns =  { col_1:[ <type>, <primary_key[yes:1,no:0]>,<index>], col_2, ......., col_n }
+# column = [ col_1, col_2, ......, col_n]
+# primary = { primary_key_1, primary_key_2, ......, primary_key_n } (set)
+# size = numTuples
+# tuples = { key1 : tuple_1, key2 : tuple2... key_n tuple_n}
+# tuple = { attribute_name : value }
+
+databases = {}
+
+class Table: 
+    def __init__(self):
+        self.columns = {}
+        self.column = []
+        self.primary = set()
+        self.size = 0
+        self.tuples = {}
+
 import sqlparse
 import time
 import re
 from BTrees._OOBTree import OOBTree
+from tabulate import tabulate as tb
 from treelib import Node, Tree
 # from test import eval_query
 # import test
@@ -32,7 +56,10 @@ quitting = False
 PROMPT = "-> "
 PROMPT2 = "> "
 
-databases = {}
+SIMPLE_SELECT = False
+SIMPLE_WILDCARD = False
+
+#databases = {}
 describe_columns = { 'Field':['STRING',0], 'Type':['STRING',0], 'Primary':['STRING',0]} # describe
 # Column 
 
@@ -125,7 +152,7 @@ def find_operation():
         return -1
     
 def show_table():
-    table = [{'Tables':['STRING',0]},[],set(),dict()]
+    table = [{'Tables \n------':['STRING',0]},[],set(),dict()] #What is going on with the empty list, set and dict? Do I need to modify?
     for table_name in databases.keys():
         list = [table_name]
         table.append(list)
@@ -133,13 +160,15 @@ def show_table():
 
 def create_table():
     global databases
+    validateTableName(query_tokens[2])
     table_name = query_tokens[2]
-    table = [dict(),list(),set(),dict()]
+    table = Table()
     table = parse_columns(table)
     databases[table_name] = table
     return ["Query OK, 0 rows affected"]
 
 def parse_columns(table):
+    primary_flag = False
     parsed = query_tokens[3]
     if parsed[0] != '(' or parsed[len(parsed)-1] != ')':
         raise Syntax_Error("Syntax Error: attributes is invalid")
@@ -150,35 +179,50 @@ def parse_columns(table):
     index = 0
     for attribute in attributes:
         tokens = re.split(r' \s*(?![^()]*\))',attribute.strip())
-        # print(tokens)
+
         name = tokens[0]
         type = tokens[1].upper()
         if name == 'PRIMARY':
-            if len(tokens) != 3 or tokens[1] != 'KEY':
+            if len(tokens) > 3 or tokens[1].upper().startswith('KEY') == False:
                 raise Syntax_Error("Syntax Error: Primary key")
-            keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
+            #this handles if someone writes primary key(a) instead of primary key (a)
+            if(tokens[1].upper() != 'KEY'): 
+                keys = tokens[1][3:]
+                keys = keys[1:len(keys)-1].strip().split(',')
+            else: 
+                keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
+
             for key in keys:
-                if key.strip() not in table[0]:
+                if key.strip() not in table.columns: #table[0]
                     raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
-                table[0][key.strip()][1] = 1 
-                table[2].add(key.strip())
+                table.columns[key.strip()][1] = 1 #table[0][key.strip()][1] = 1
+                table.primary.add(key.strip()) #table[2].add(key.strip())
+                
+            primary_flag = True
         if name == 'FOREIGN':
-            if len(tokens) != 3 or tokens[1] != 'KEY':
-                raise Syntax_Error("Syntax Error: Primary key")
-            keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
+            if len(tokens) > 3 or tokens[1].upper().startswith('KEY') == False:
+                raise Syntax_Error("Syntax Error: Foreign key")
+            #this handles if someone writes foreign key(a) instead of foreign key (a)
+            if(tokens[1].upper() != 'KEY'):
+                keys = tokens[1][3:]
+                keys = keys[1:len(keys)-1].strip().split(',')
+            else: 
+                keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
             for key in keys:
-                if key.strip() not in table[0]:
+                if key.strip() not in table.columns: #table[0]
                     raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
-                table[0][key.strip()][1] = 2
-                table[2].add(key.strip())
+                table.columns[key.strip()][1] = 2 #table[0][key.strip()][1] = 2
+                table.primary.add(key.strip()) #table[2].add(key.strip()) - should we be adding as a primary key if its foreign??
         if name != 'PRIMARY':
-            if name in table[0]:
+            if name in table.columns: #table[0]:
                 raise Duplicate_Item("Duplicate column name " + tokens[0])
             if type not in datatype:
                 raise Invalid_Type("Invalid Data type '" + tokens[1] + "'")
-            table[0][name] = [type,0,index]
+            table.columns[name] = [type, 0, index] #table[0][name] = [type,0,index]
             index = index+1
-            table[1].append(name)   
+            table.column.append(name) #table[1].append(name)  
+    if(primary_flag == False):
+        raise Syntax_Error('Syntax Error: relation must have a primary key') 
     return table
 
 
@@ -262,7 +306,7 @@ def eval_query():
         return insert(table_name)
     if optr == 4:
         if(validateSelect()):
-            print('PASSED!')
+            select()
         else:
             print('FAILED!')
         
@@ -290,8 +334,36 @@ def print_table(R):
         print(line)
     return 
 
+def validateTableName(table_name):
+    if(is_keyword(table_name)):
+        raise Syntax_Error('Syntax Error: invalid table name ' + table_name)
+    
+    if(all(char.isalnum() or char == '_' for char in table_name) != True):
+        raise Syntax_Error('Syntax Error: invalid table name ' + table_name)
+
 def select():
-    print('select')
+    print('in here')
+    '''
+    if(SIMPLE_SELECT):
+        columns_list = []
+        table_name = query_tokens[3]
+
+        if(',' not in query_tokens[1]):
+            columns_list = [query_tokens[1].strip()]
+        else: 
+            columns_list = [column.strip() for column in query_tokens[1].split(',')]
+    '''
+    if(SIMPLE_WILDCARD == True):
+        print('in simple wildcard')
+        table_name = query_tokens[3]
+        columns_list = databases[table_name][0]
+
+        relation = databases[table_name][4:]
+
+        print(tb(relation, headers=columns_list))
+
+
+    
 
 ### SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
@@ -334,14 +406,18 @@ def validateSelect():
             raise TABLE_EXIST("Table does not exist")
         #validate all columns exist in the table
         else:
+            print('in wildcard')
             select_columns = databases[table_name][0] #all columns in database
             wildcardFlag = True
+            global SIMPLE_WILDCARD
+            SIMPLE_WILDCARD = True
     elif('(' in query_tokens[1]):
         if(')' in query_tokens[1]):
             validateAggregateFunction()
         else:
             raise Syntax_Error("Syntax Error: no closing parentheses")
-    else: 
+    else:
+        SIMPLE_SELECT = True 
         select_columns = [item.strip() for item in query_tokens[1].split(',')]
     
     if(query_tokens[2] != 'FROM'):
