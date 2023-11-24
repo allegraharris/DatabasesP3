@@ -313,6 +313,11 @@ def validateSelect():
                 return validateJoin()
             elif(',' in query_tokens[3]):
                 return validateMultiSelect()
+            elif('(' in query_tokens[1]):
+                if(')' in query_tokens[1]):
+                    validateAggregateFunction()
+                else: 
+                    raise Syntax_Error("Syntax Error: no closing parentheses")
             else:
                 select_columns = validateSelectWithTableNames()
                     
@@ -499,11 +504,14 @@ def validateWildcardJoin():
 
 def validateSelectWithTableNames():
     table_column_dict = {}
-    pairs = query_tokens[1].split(', ')
+    pairs = query_tokens[1].split(',')
     select_columns = []
 
     for pair in pairs:
-        table_name, column_name = pair.strip().split('.')
+        try: 
+            table_name, column_name = pair.strip().split('.')
+        except ValueError: 
+            raise Unsupported_Functionality('Unsupported Functionality: must specify table names for all attributes if doing it for one')
         if table_name in table_column_dict:
             table_column_dict[table_name].append(column_name)
         else:
@@ -563,7 +571,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
             if(pair[0] not in joining_tables): 
                 raise Syntax_Error('Syntax Error: invalid join syntax')
             if(pair[1] not in databases[pair[0]][0]):
-                raise Syntax_Error('Column ' + pair[1] + ' does not exist')
+                raise Syntax_Error('Syntax Error: Column ' + pair[1] + ' does not exist')
     else: 
         #isolating column names using regex
         pattern = r'\b(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
@@ -571,12 +579,61 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 
         for col in cols:
             if(col not in databases[table_name][0]):
-                raise Syntax_Error('Column ' + col + ' does not exist')
+                raise Syntax_Error('Syntax Error: Column ' + col + ' does not exist')
         
     return True
     
 def validateAggregateFunction():
-    print('validate aggregate function')
+    table_name = ''
+    from_table_name = ''
+    column_name = ''
+    pattern = r'^max\(([^)]+)\)$'
+
+    #multiple columns can't be selected with an aggregate function
+    if(',' in query_tokens[1]):
+        raise Unsupported_Functionality('Unsupported Functionality: cannot select multiple attributes when using an aggregate function') 
+
+    match = re.match(pattern, query_tokens[1].strip())
+
+    if(match):
+        #if specifying table name
+        if('.' in match.group(1)):
+            table_name, column_name = match.group(1).strip().split('.')
+        else:
+            column_name = match.group(1)
+    else:
+       raise Syntax_Error('Syntax Error or Unsupported Aggregate Function: ' + query_tokens[1])
+
+    if(query_tokens[2] != 'FROM'):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+    
+    if(',' in query_tokens[3]):
+        raise Unsupported_Functionality('Unsupported Functionality: cannot select from multiple tables with an aggregate function')
+    else: 
+        from_table_name = query_tokens[3]
+
+    if(table_name == ''):
+        if(from_table_name not in databases):
+            raise TABLE_EXIST('HERE 1: Table does not exist')
+        if(column_name not in databases[from_table_name][0]):
+            raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
+    else: 
+        if(table_name != from_table_name):
+            raise Syntax_Error('Syntax Error: Cannot select from a table that is not specified')
+        else:
+            if(table_name not in databases):
+                raise TABLE_EXIST('HERE 2: Table does not exist')
+            if(column_name not in databases[table_name][0]):
+                raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
+
+    if(len(query_tokens) >= 5):
+        if(query_tokens[4].startswith('WHERE')):
+            validateWhere([], from_table_name, query_tokens[4], False)
+        elif(query_tokens[4] != ';'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[4])
+    
+    return True
+
 
 ### END OF SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
