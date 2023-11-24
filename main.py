@@ -536,7 +536,49 @@ def validateSelectWithTableNames():
     return select_columns
 
 def validateMultiSelect():
-    print('validate multi select')
+    table_column_dict = {}
+    pairs = query_tokens[1].split(',')
+    select_columns = []
+
+    for pair in pairs:
+        try: 
+            table_name, column_name = pair.strip().split('.')
+        except ValueError: 
+            raise Unsupported_Functionality('Unsupported Functionality: must specify table names for all attributes if doing it for one')
+        if table_name in table_column_dict:
+            table_column_dict[table_name].append(column_name)
+        else:
+            table_column_dict[table_name] = [column_name]
+    
+    for table in table_column_dict: 
+        if(table not in databases):
+            raise TABLE_EXIST('Table does not exist')
+        for column in table_column_dict[table]:
+            if(column not in databases[table][0]):
+                raise Syntax_Error("Syntax Error: Column " + column + " does not exist")
+    
+    if(query_tokens[2] != 'FROM'):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+            
+    from_tables = [value.strip() for value in query_tokens[3].split(',')]
+
+    for table in from_tables:
+        if(table not in databases):
+            raise TABLE_EXIST('Table does not exist')
+
+    for table in table_column_dict:
+        if(table not in from_tables):
+            raise Syntax_Error('Syntax Error: cannot select from an unspecified table')
+    
+    if(len(query_tokens) >= 5):
+        if(query_tokens[4].startswith('WHERE')):
+            validateWhere(from_tables, ' ', query_tokens[4], True) #this isn't a join but looks the same to the where clause parser
+        elif(query_tokens[4] != ';'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[4])
+
+    return True 
+        
+    
 
 def validateMultiSelectWildcard():
     print('wildcard')
@@ -569,7 +611,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
             if(pair[0] not in databases):
                 raise TABLE_EXIST('Table ' + pair[0] + ' does not exist')
             if(pair[0] not in joining_tables): 
-                raise Syntax_Error('Syntax Error: invalid join syntax')
+                raise Syntax_Error('Syntax Error: ' + pair[0])
             if(pair[1] not in databases[pair[0]][0]):
                 raise Syntax_Error('Syntax Error: Column ' + pair[1] + ' does not exist')
     else: 
