@@ -50,12 +50,13 @@ PROMPT2 = "> "
 
 SIMPLE_SELECT = False
 SIMPLE_WILDCARD = False
-MULTI_SELECT = False
 SELECT_WITH_TABLE_NAMES = False
 AGGREGATE = False
 WHERE = False
 SIMPLE_SINGLE_WHERE = False
 SIMPLE_DOUBLE_WHERE = False
+
+FLAGS = [SIMPLE_SELECT, SIMPLE_WILDCARD, SELECT_WITH_TABLE_NAMES, AGGREGATE, WHERE, SIMPLE_SINGLE_WHERE, SIMPLE_DOUBLE_WHERE]
 
 ### Input Parsing ###
 #-----------------------------------------------------------#
@@ -220,6 +221,9 @@ def select():
             pattern = fr"(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)\s(AND|OR)\s(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)"
             matches = re.match(pattern, cleanClause)
             conditions = [matches.group(i).strip() for i in range(1, 8)]
+
+            tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 2)
+
         else:
             tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
             
@@ -254,6 +258,7 @@ def select():
 
             tempTable = databases[table_name].max(column_name)
             tempTable.print_internal()
+    nullify()
 
 
 
@@ -755,18 +760,26 @@ def validateAggregateFunction():
 #------------------------------------------------------------------------------#
 
 #Helper
-'''
 
-def onlyTrue(c):
-    for flag in FLAGS:
-        if flag == c:
-            if FLAGS[flag] == False:
-                return False
-        else:
-            if FLAGS[flag] == True:
-                return False
-    return True
-'''
+
+def nullify():
+    global SIMPLE_SELECT
+    global SIMPLE_WILDCARD
+    global SELECT_WITH_TABLE_NAMES
+    global AGGREGATE
+    global WHERE
+    global SIMPLE_SINGLE_WHERE
+    global SIMPLE_DOUBLE_WHERE
+
+    SIMPLE_SELECT = False
+    SIMPLE_WILDCARD = False 
+    SELECT_WITH_TABLE_NAMES = False
+    AGGREGATE = False
+    WHERE = False 
+    SIMPLE_SINGLE_WHERE = False 
+    SIMPLE_DOUBLE_WHERE = False
+    
+
 
 ### OPTIMISATION FUNCTIONS ###
 #------------------------------------------------------------------------------#

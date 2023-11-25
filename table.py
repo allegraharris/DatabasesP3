@@ -206,7 +206,18 @@ class Table:
 
 
     def copyColumns(self, tempTable, newColumns, conditions, single):
+        #arguments:
+        #tempTable = the new empty table to copy data into
+        #newColumns = the columns we are trying to select
+        #conditions = a list of the format ['a', '=', '2', 'and','b', '<', '6']
+            # Will either have size 3 or 7 dependending on whether there are two conditions or not
+        #single = an integer (0,1,2) which specifies how many conditions there are 
+
         addRow = False
+        first = False
+        second = False
+
+        #If there is no where clause, copy values from relevant columns into new relation
         if(len(conditions) == 0):
             for key, inner_dict in self.indexing.items():
                 for column, value in inner_dict.items():
@@ -219,10 +230,11 @@ class Table:
                             tempTable.indexing[key][column].add(value)
                         tempTable.size+=1
             tempTable.columns = list(newColumns)
+        #if only one condition, add all values from relevant columns into new relation that meet the condition
         elif(single == 1):
             for key, inner_dict in self.indexing.items():
                 for column, value in inner_dict.items():
-                    if column in newColumns and column == conditions[0][0]:
+                    if column in newColumns and column == conditions[0]:
                         if(evaluateCondition(value, conditions[1], conditions[2])):
 
                             if key not in tempTable.indexing:
@@ -238,6 +250,43 @@ class Table:
                 addRow = False
 
             tempTable.columns = list(newColumns)
+        #if two conditions, same idea as above but a bit more fiddly
+        elif(single == 2):
+            for key, inner_dict in self.indexing.items():
+                for column, value in inner_dict.items():
+                    if column in newColumns and (column == conditions[0]):
+                        if(evaluateCondition(value, conditions[1], conditions[2])):
+                            first = True
+                            count1+=1
+                    elif column in newColumns and (column == conditions[4]):
+                        if(evaluateCondition(value, conditions[5], conditions[6])):
+                            second = True
+                            count2+=1
+
+                        if(conditions[3] == 'AND' and first and second):
+                            break
+                        elif(conditions[3] == 'OR' and (first or second)):
+                            break
+
+                if(conditions[3] == 'AND' and first and second):
+                    for column, value in inner_dict.items():
+                        if column in newColumns:
+                            if key not in tempTable.indexing:
+                                tempTable.indexing[key] = {}
+                            tempTable.indexing[key][column] = value
+                            tempTable.size+=1
+                elif(conditions[3] == 'OR' and (first or second)):
+                    for column, value in inner_dict.items():
+                        if column in newColumns:
+                            if key not in tempTable.indexing:
+                                tempTable.indexing[key] = {}
+                            tempTable.indexing[key][column] = value
+                            tempTable.size+=1
+                first = False
+                second = False
+
+            tempTable.columns = list(newColumns)    
+
         return tempTable
     
     def max(self, column):

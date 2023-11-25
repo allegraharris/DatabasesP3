@@ -4,4 +4,11 @@ insert into test (a,b,c) values ('b','c','d');
 insert into test (a,b,c) values ('c','d','e');
 insert into test (a,b,c) values ('d','e','f');
 
-select a,b,c from test where a = 'd';
+create table test2 (d int, e int, f int, primary key(d));
+insert into test2 (d,e,f) values (1,2,3);
+insert into test2 (d,e,f) values (4,5,6);
+insert into test2 (d,e,f) values (7,8,9);
+insert into test2 (d,e,f) values (10,11,12);
+
+
+select d,e,f from test2 where d != 1 or e != 5;
