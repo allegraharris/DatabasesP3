@@ -14,6 +14,7 @@ from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, 
 
 class Table:
     def __init__(self):
+        self.name = ''
         self.columns = list()
         self.column_data = dict()
         self.pri_keys = set()
@@ -29,7 +30,6 @@ class Table:
     ### attribute is the raw input, e.g: net_id INT, PRIMARY KEY (net_id), PRIMARY KEY ()
     def add_attribute(self,attribute):
         tokens = [token for token in re.split(r'\s+|([a-zA-Z_]+)|(\([^)]+\))',attribute) if token]
-        # print(tokens)
         if tokens[0] == 'PRIMARY': # primary key definition
             if len(tokens) != 3 or tokens[1].upper() != 'KEY':
                 raise Syntax_Error("Syntax Error: Primary Key")
@@ -158,6 +158,7 @@ class Table:
             for column in headers:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
+        print(f"Table {self.name}:")
         print(tb(tuples, headers, tablefmt='outline'))
         return
 

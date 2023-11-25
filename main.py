@@ -100,6 +100,7 @@ def show_table():
 def create_table():
     table = Table()
     table = parse_columns(table)
+    table.name = query_tokens[2]
     databases[query_tokens[2]] = table
     print("Query OK, 0 rows affected")
     return
@@ -124,15 +125,15 @@ def execute(filename):
         with open(filename,'r') as file:
             file_content = file.read().replace('\n',' ')
     except FileNotFoundError:
-        print(f"File {filename} not found")
+        raise FileNotFoundError(f"File {filename} not found")
     sql_query = sqlparse.format(file_content,reindent=False, keyword_case='upper')
     sql_queries = sqlparse.parse(sql_query)
     for stmt in sql_queries:
+        start_time = time.time()
         query_tokens = []
         for token in stmt.tokens:
             if token.value.strip():
                 query_tokens.append(token.value)
-        start_time = time.time()
         eval_query()
         end_time = time.time()
         print(f"Time: {end_time-start_time:.3f}s")
@@ -207,19 +208,19 @@ def validateTableInput(cols_data):
 def validateInsert(tokens):
     if len(tokens) != 5 or tokens[1] != 'INTO':
         raise Syntax_Error("Syntax Error: INSERT")
-    insert_info = re.split(r' \s*(?![^()]*\))',tokens[2])
-    if len(insert_info) != 2:
+    insert_info = [token for token in re.split(r'\s+|([a-zA-Z_]+)|(\([^)]+\))',tokens[2]) if token]
+    if len(insert_info) > 2:
         raise Syntax_Error("Syntax Error: INSERT[2]")
     table_name = insert_info[0]
     if table_name not in databases:
         raise Not_Exist(f"Table {table_name} does not exist")
-    columns = insert_info[1][1:len(insert_info)-1].strip()
-    columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
-    # print(columns)
-    if len(columns) != 0:
-        for i in range (0,len(columns)):
-            if columns[i] != databases[table_name].columns[i]:
-                raise Syntax_Error("Syntax Error: INSERT Columns does not match")
+    if len(insert_info) == 2:
+        columns = insert_info[1][1:len(insert_info)-1].strip()
+        columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
+        if len(columns) != 0:
+            for i in range (0,len(columns)):
+                if columns[i] != databases[table_name].columns[i]:
+                    raise Syntax_Error("Syntax Error: INSERT Columns does not match")
     if tokens[3] == 'VALUES':
         raise Syntax_Error("Syntax Error: Empty VALUES, no tuples inserted")
     return table_name
@@ -682,16 +683,13 @@ def optimiseTree():
 while quitting == False:
     try:
         readInput()
+        start_time = time.time()
         filter()
-        # print(sql_query)
-        # print(query_tokens)
         if query_tokens[0] == "quit":
             break
-        start_time = time.time()
         eval_query()
         end_time = time.time()
         print(f"Time: {end_time-start_time:.3f}s")
-        # print(databases)
     # throw errors
     except Syntax_Error as e:
         print(f"{e}")
@@ -704,6 +702,8 @@ while quitting == False:
     except Not_Exist as e:
         print(f"{e}")
     except Unsupported_Functionality as e:
+        print(f"{e}")
+    except FileNotFoundError as e:
         print(f"{e}")
 for table in databases.keys():
     databases[table].describe()

@@ -11,8 +11,8 @@ create table employees (
     foreign key (dep_id) references departments(dep_id)
 );
 
-INSERT INTO departments () 
+INSERT INTO departments() 
     VALUES (1,'chem'), (2,'math'), (3,'cs'), (4,'physics'), (5,'biology');
 
-INSERT INTO employees () 
+INSERT INTO employees() 
     VALUES (822278827,'charlie mei',3), (235123,'allegra harris',2), (2358437820,'sarah green',4);
