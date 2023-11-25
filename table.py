@@ -176,3 +176,17 @@ class Table:
                 tuple.append('FOR')
             tuples.append(tuple)
         print(tb(tuples,headers,tablefmt='outline'))
+
+    def copyColumns(self, tempTable, newColumns):
+        primaryFlag = True
+        count = 0
+
+        for key in self.pri_keys:
+            if(key not in newColumns):
+                primaryFlag = False
+            
+        for column in newColumns:
+            if(column in self.pri_keys and primaryFlag and count == 0):
+                tempTable
+
+        return tempTable

@@ -27,14 +27,6 @@
 
 databases = {}
 
-class Table: 
-    def __init__(self):
-        self.columns = {}
-        self.column = []
-        self.primary = ''
-        self.size = 0
-        self.tuples = {}
-
 import sqlparse
 import time
 import re
@@ -96,7 +88,7 @@ def filter():
             if token.value.strip():
                 query_tokens.append(token.value)
 
-### End od Input Parsing
+### End of Input Parsing
 
 # some special function
 # check if user input is keyword
@@ -188,15 +180,27 @@ def eval_query():
         filename = validateExecute(query_tokens)
         execute(filename)
         return
-    elif optr == 4:
+    elif optr == 'SELECT':
         if(validateSelect()):
             select()
-        else:
-            print('FAILED!')
+        return
     raise Syntax_Error("Unknown SQL Command")
 
 def select():
-    print('select')
+    if(SIMPLE_WILDCARD and SIMPLE_SELECT == False):
+        table_name = query_tokens[3]
+        databases[table_name].print_internal()
+    elif(SIMPLE_SELECT):
+        table_name = query_tokens[3]
+        columns = query_tokens[1]
+
+        if(',' in columns):
+            print("do this")
+        else:
+            tempTable = Table()
+            
+
+
 
 ### VALIDATE SQL COMMAND ###
 #------------------------------------------------------------------------------#
@@ -293,6 +297,10 @@ def validateSelect():
     elif(query_tokens[1] == '*'):
         table_name = query_tokens[3]
         #selecting wildcard from multiple tables
+
+        if(query_tokens[2] != 'FROM'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
                 return validateWildcardJoin()
@@ -302,8 +310,7 @@ def validateSelect():
             raise Not_Exist("Table does not exist")
         #validate all columns exist in the table
         else:
-            print('in wildcard')
-            select_columns = databases[table_name][0] #all columns in database
+            select_columns = databases[table_name].column_data #all columns in database
             wildcardFlag = True
             global SIMPLE_WILDCARD
             SIMPLE_WILDCARD = True
@@ -313,6 +320,7 @@ def validateSelect():
         else:
             raise Syntax_Error("Syntax Error: no closing parentheses")
     else:
+        global SIMPLE_SELECT
         SIMPLE_SELECT = True 
         select_columns = [item.strip() for item in query_tokens[1].split(',')]
     
@@ -329,7 +337,7 @@ def validateSelect():
         elif(wildcardFlag != True): 
             table_name = query_tokens[3]
             for column in select_columns:
-                if(column not in databases[table_name][0]):
+                if(column not in databases[table_name].column_data):
                     raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
 
     if(length >= 5):
@@ -365,7 +373,7 @@ def validateJoin():
         if(table not in databases):
             raise Not_Exist("Table does not exist")
         for column in table_column_dict[table]:
-            if(column not in databases[table][0]):
+            if(column not in databases[table].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
             
     #we're only selecting from one table
@@ -407,7 +415,7 @@ def validateJoin():
         if(table not in joining_tables):
             raise Syntax_Error('Syntax Error: Invalid join syntax')
         
-        if(column not in databases[table][0]):
+        if(column not in databases[table].column_data):
             raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
     
     #checking if it also has a where clause 
@@ -462,7 +470,7 @@ def validateWildcardJoin():
         if(table not in databases):
             raise Not_Exist('Table does not exist')
         
-        if(column not in databases[table][0]):
+        if(column not in databases[table].column_data):
             raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
         
     #checking if it also has a where clause 
@@ -501,7 +509,7 @@ def validateSelectWithTableNames():
             raise Syntax_Error("Syntax Error: cannot select from a table that hasn't been specified")
         
         for column in table_column_dict[table_nm]:
-            if(column not in databases[table_nm][0]):
+            if(column not in databases[table_nm].column_data):
                 raise Syntax_Error("Syntax Error: Column " + column + " does not exist")
             select_columns.append(column)
 
@@ -525,7 +533,7 @@ def validateMultiSelect():
         if(table not in databases):
             raise Not_Exist('Table does not exist')
         for column in table_column_dict[table]:
-            if(column not in databases[table][0]):
+            if(column not in databases[table].column_data):
                 raise Syntax_Error("Syntax Error: Column " + column + " does not exist")
     
     if(query_tokens[2] != 'FROM'):
@@ -596,7 +604,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
                 raise Not_Exist('Table ' + pair[0] + ' does not exist')
             if(pair[0] not in joining_tables): 
                 raise Syntax_Error('Syntax Error: ' + pair[0])
-            if(pair[1] not in databases[pair[0]][0]):
+            if(pair[1] not in databases[pair[0]].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + pair[1] + ' does not exist')
     else: 
         #isolating column names using regex
@@ -604,7 +612,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         cols = re.findall(pattern, cleanClause)
 
         for col in cols:
-            if(col not in databases[table_name][0]):
+            if(col not in databases[table_name].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + col + ' does not exist')
         
     return True
@@ -641,7 +649,7 @@ def validateAggregateFunction():
     if(table_name == ''):
         if(from_table_name not in databases):
             raise Not_Exist('HERE 1: Table does not exist')
-        if(column_name not in databases[from_table_name][0]):
+        if(column_name not in databases[from_table_name].column_data):
             raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
     else: 
         if(table_name != from_table_name):
@@ -649,7 +657,7 @@ def validateAggregateFunction():
         else:
             if(table_name not in databases):
                 raise Not_Exist('HERE 2: Table does not exist')
-            if(column_name not in databases[table_name][0]):
+            if(column_name not in databases[table_name].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
 
     if(len(query_tokens) >= 5):
@@ -666,7 +674,7 @@ def validateAggregateFunction():
 
 ### OPTIMISATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
-
+'''
 def createQueryTree():
     OptimiserTree = Tree()
     i = 0
@@ -702,6 +710,7 @@ def createQueryTree():
 
 def optimiseTree():
     print("optimise tree")
+'''
 
 ### END OF OPTIMISATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
