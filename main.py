@@ -31,7 +31,7 @@ class Table:
     def __init__(self):
         self.columns = {}
         self.column = []
-        self.primary = set()
+        self.primary = ''
         self.size = 0
         self.tuples = {}
 
@@ -196,7 +196,7 @@ def parse_columns(table):
                 if key.strip() not in table.columns: #table[0]
                     raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
                 table.columns[key.strip()][1] = 1 #table[0][key.strip()][1] = 1
-                table.primary.add(key.strip()) #table[2].add(key.strip())
+                table.primary = key.strip() #table[2].add(key.strip())
                 
             primary_flag = True
         if name == 'FOREIGN':
@@ -212,7 +212,7 @@ def parse_columns(table):
                 if key.strip() not in table.columns: #table[0]
                     raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
                 table.columns[key.strip()][1] = 2 #table[0][key.strip()][1] = 2
-                table.primary.add(key.strip()) #table[2].add(key.strip()) - should we be adding as a primary key if its foreign??
+                table.primary = key.strip() #table[2].add(key.strip()) - should we be adding as a primary key if its foreign??
         if name != 'PRIMARY':
             if name in table.columns: #table[0]:
                 raise Duplicate_Item("Duplicate column name " + tokens[0])
@@ -242,7 +242,7 @@ def insert(table_name):
     items = re.split(r',\s*(?![^()]*\))',tuples)
     columns = databases[table_name].columns #databases[table_name][0]
     column = databases[table_name].column #databases[table_name][1]
-    primary_keys = databases[table_name].primary
+    primary_key = databases[table_name].primary #primary_keys = databases[table_name].primary #this gives me the name of the primary key
     # print(tuples)
     # print(values)
     for item in items:
@@ -259,14 +259,17 @@ def insert(table_name):
         num += 1
     
     #I HAVE GOTTEN UP TO HERE
-    
+
+
     for Tuple in add_tuples:
-        databases[table_name].append(Tuple)
-        tuple_keys = set()
-        for key in primary_keys:
-            tuple_keys.add(Tuple[columns[key][2]])
+        databases[table_name].tuples[Tuple[primary_key]] = Tuple #this should add a tuple to the table
+
+        #databases[table_name].append(Tuple)
+        #tuple_keys = set()
+        #for key in primary_keys:
+            #tuple_keys.add(Tuple[columns[key][2]])
         # print(tuple_keys)
-        databases[table_name][3][tuple(tuple_keys)] = Tuple
+        #databases[table_name][3][tuple(tuple_keys)] = Tuple
     return [f"Query OK, {num} rows affected"]
     
 
@@ -304,7 +307,7 @@ def eval_query():
             return insert(table_name)
         attributes = column[1:len(column)-1].strip().split(',')
         for attribute in attributes:
-            if attribute.strip() not in databases[table_name][0]:
+            if attribute.strip() not in databases[table_name].columns: #databases[table_name][0]:
                 raise TABLE_EXIST(f"Column {attribute.strip()} does not exist")
         return insert(table_name)
     if optr == 4:
@@ -365,8 +368,6 @@ def select():
 
         print(tb(relation, headers=columns_list))
 
-
-    
 
 ### SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
