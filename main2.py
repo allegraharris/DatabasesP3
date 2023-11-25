@@ -21,7 +21,7 @@ from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, 
 
 
 keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','INT','STRING','PRIMARY','FOREIGN','KEY', 'WHERE']
-sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT', 'SELECT']
+sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT']
 LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
@@ -98,51 +98,79 @@ def show_table():
 def create_table():
     global databases
     table_name = query_tokens[2]
-    table = [dict(),list(),set(),dict()]
+    table = Table()
     table = parse_columns(table)
-    databases[table_name] = table
-    return ["Query OK, 0 rows affected"]
+    database[table_name] = table
+    table.print_internal()
+    print("Query OK, 0 rows affected")
+    return
 
 def parse_columns(table):
-    parsed = query_tokens[3]
-    if parsed[0] != '(' or parsed[len(parsed)-1] != ')':
-        raise Syntax_Error("Syntax Error: attributes is invalid")
-    if len(parsed) == 2 or parsed[1:len(parsed)-1].isspace():
-        raise Syntax_Error("Syntax Error: attributes cannot be empty")
-    attributes = re.split(r',\s*(?![^()]*\))', parsed[1:len(parsed)-1].strip())
-    # print(attributes)
-    index = 0
+    primary_flag = False
+    attributes = validateTableInput(query_tokens[3])
+    print(attributes)
+    # index = 0
     for attribute in attributes:
         tokens = re.split(r' \s*(?![^()]*\))',attribute.strip())
-        # print(tokens)
-        name = tokens[0]
-        type = tokens[1].upper()
-        if name == 'PRIMARY':
+        print(tokens)
+        if tokens[0] == 'PRIMARY':
+            print("adding primary keys to the table")
+            if primary_flag == True:
+                raise Syntax_Error("Syntax Error: primary key defined twice")
             if len(tokens) != 3 or tokens[1] != 'KEY':
-                raise Syntax_Error("Syntax Error: Primary key")
-            keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
-            for key in keys:
-                if key.strip() not in table[0]:
-                    raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
-                table[0][key.strip()][1] = 1 
-                table[2].add(key.strip())
-        if name == 'FOREIGN':
-            if len(tokens) != 3 or tokens[1] != 'KEY':
-                raise Syntax_Error("Syntax Error: Primary key")
-            keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
-            for key in keys:
-                if key.strip() not in table[0]:
-                    raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
-                table[0][key.strip()][1] = 2
-                table[2].add(key.strip())
-        if name != 'PRIMARY':
-            if name in table[0]:
-                raise Duplicate_Item("Duplicate column name " + tokens[0])
-            if type not in datatype:
-                raise Invalid_Type("Invalid Data type '" + tokens[1] + "'")
-            table[0][name] = [type,0,index]
-            index = index+1
-            table[1].append(name)   
+                raise Syntax_Error("Syntax Error: Primary Key")
+            
+            primary_flag = True
+        else:
+            print("add column")
+            table.add_column(tokens[0],tokens[1].upper())
+        # return
+        # name = tokens[0]
+        # if name == 'PRIMARY' or 'FOREIGN':
+
+        #     if primary_flag == True:
+        #         raise Syntax_Error("Syntax Error: primary or foreign key defined twice")
+        # if name == 'PRIMARY':
+        #     if len(tokens) > 3 or tokens[1].upper().startswith('KEY') == False:
+        #         raise Syntax_Error("Syntax Error: Primary key")
+        #     #this handles if someone writes primary key(a) instead of primary key (a)
+        #     if(tokens[1].upper() != 'KEY'): 
+        #         keys = tokens[1][3:]
+        #         keys = keys[1:len(keys)-1].strip().split(',')
+        #     else: 
+        #         keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
+
+        #     for key in keys:
+        #         if key.strip() not in table.columns: #table[0]
+        #             raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
+        #         table.columns[key.strip()][1] = 1 #table[0][key.strip()][1] = 1
+        #         table.primary.add(key.strip()) #table[2].add(key.strip())
+                
+        #     primary_flag = True
+        # if name == 'FOREIGN':
+        #     if len(tokens) > 3 or tokens[1].upper().startswith('KEY') == False:
+        #         raise Syntax_Error("Syntax Error: Foreign key")
+        #     #this handles if someone writes foreign key(a) instead of foreign key (a)
+        #     if(tokens[1].upper() != 'KEY'):
+        #         keys = tokens[1][3:]
+        #         keys = keys[1:len(keys)-1].strip().split(',')
+        #     else: 
+        #         keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
+        #     for key in keys:
+        #         if key.strip() not in table.columns: #table[0]
+        #             raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
+        #         table.columns[key.strip()][1] = 2 #table[0][key.strip()][1] = 2
+        #         table.primary.add(key.strip()) #table[2].add(key.strip()) - should we be adding as a primary key if its foreign??
+        # if name != 'PRIMARY':
+        #     if name in table.columns: #table[0]:
+        #         raise Duplicate_Item("Duplicate column name " + tokens[0])
+        #     if type not in datatype:
+        #         raise Invalid_Type("Invalid Data type '" + tokens[1] + "'")
+        #     table.columns[name] = [type, 0, index] #table[0][name] = [type,0,index]
+        #     index = index+1
+        #     table.column.append(name) #table[1].append(name)  
+    if(primary_flag == False):
+        raise Syntax_Error('Syntax Error: relation must have a primary key') 
     return table
 
 
@@ -189,16 +217,12 @@ def insert(table_name):
 
 def eval_query():
     optr = find_operation()
-    # print(optr)
     if optr == 0:
         if query_tokens[1] != 'TABLE' or len(query_tokens) != 5:
-            raise Syntax_Error("Syntax Error: TABLE")
-        table_name = query_tokens[2]
-        if is_keyword(table_name):
-            raise Keyword_Used("Keyword used:" + query_tokens[2])
-        if table_name in databases:
-            raise TABLE_EXIST("Table '" + table_name + "' exists")
-        return create_table()
+            raise Syntax_Error("Syntax Error: CREATE TABLE")
+        validateTableName(query_tokens[2])
+        create_table()
+        return
     if optr == 1:
         if len(query_tokens) != 3 or query_tokens[1] != 'TABLES':
             raise Syntax_Error("Syntax Error: SHOW TABLES")
@@ -259,6 +283,28 @@ def select():
 
 ### SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
+
+def validateTableName(table_name):
+    if table_name in database:
+        raise Table_Exist("Table '" + table_name + "' exists")
+    if (is_keyword(table_name)):
+        raise Syntax_Error("Syntax Error: invalid table name: " + table_name)
+    if(all(char.isalnum() or char == '_' for char in table_name) != True):
+        raise Syntax_Error('Syntax Error: invalid table name ' + table_name)
+    
+"""
+Validate input for CREATE TABLE and return attribute list
+"""
+def validateTableInput(cols_data):
+    length = len(cols_data)
+    if cols_data[0] != '(' or cols_data[length-1] != ')':
+        raise Syntax_Error("Syntax Error: attributes is invalid")
+    if length == 2 or cols_data[1:length-1].isspace():
+        raise Syntax_Error("Syntax Error: attributes cannot be empty")
+    cols_data = cols_data[1:length-1].strip()
+    attributes = re.split(r',\s*(?![^()]*\))', cols_data)
+    return attributes
+
 
 def validateSelect(): 
     length = len(query_tokens)
@@ -706,6 +752,7 @@ while quitting == False:
         print(query_tokens)
         if query_tokens[0] == "quit":
             break
+        eval_query()
         # start_time = time.time()
         # print_table(eval_query())
         # end_time = time.time()
@@ -725,5 +772,6 @@ while quitting == False:
     except Unsupported_Functionality as e:
         print(f"{e}")
 for table in database.keys():
-    print(database[table])
+    print(f"Table {table}:")
+    database[table].print_internal()
     
