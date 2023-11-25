@@ -4,4 +4,4 @@ insert into test (a,b,c) values (2,3,4);
 insert into test (a,b,c) values (3,4,5);
 insert into test (a,b,c) values (4,5,6);
 
-select max(test.a) from test;
+select a,b,c from test where a = 2;

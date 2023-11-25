@@ -13,6 +13,24 @@ import re
 from BTrees._OOBTree import OOBTree
 from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
+
+def evaluateCondition(value1, operator, value2):
+        value2 = int(value2)
+
+        if operator == '=':
+            return value1 == value2
+        elif operator == '!=':
+            return value1 != value2
+        elif operator == '>':
+            return value1 > value2
+        elif operator == '>=':
+            return value1 >= value2
+        elif operator == '<':
+            return value1 < value2
+        elif operator == '<=':
+            return value1 <= value2
+        
+        return False
 class Table:
     def __init__(self):
         self.columns = list()
@@ -178,18 +196,40 @@ class Table:
             tuples.append(tuple)
         print(tb(tuples,headers,tablefmt='outline'))
 
-    def copyColumns(self, tempTable, newColumns):
-        for key, inner_dict in self.indexing.items():
-            if key not in tempTable.indexing:
-                tempTable.indexing[key] = {}
-            for column, value in inner_dict.items():
-                if column in newColumns:
-                    if column not in tempTable.indexing[key]:
+
+    def copyColumns(self, tempTable, newColumns, conditions, single):
+        addRow = False
+        if(len(conditions) == 0):
+            for key, inner_dict in self.indexing.items():
+                for column, value in inner_dict.items():
+                    if key not in tempTable.indexing:
+                        tempTable.indexing[key] = {}
+                    if column in newColumns:
+                        if column not in tempTable.indexing[key]:
+                            tempTable.indexing[key][column] = value
+                        else:
+                            tempTable.indexing[key][column].add(value)
+                        tempTable.size+=1
+            tempTable.columns = list(newColumns)
+        elif(single == 1):
+            for key, inner_dict in self.indexing.items():
+                for column, value in inner_dict.items():
+                    if column in newColumns and column == conditions[0][0]:
+                        if(evaluateCondition(value, conditions[1], conditions[2])):
+
+                            if key not in tempTable.indexing:
+                                tempTable.indexing[key] = {}
+
+                            tempTable.indexing[key][column] = value
+                            tempTable.size+=1
+                            addRow = True
+
+                    if(addRow):
                         tempTable.indexing[key][column] = value
-                    else:
-                        tempTable.indexing[key][column].add(value)
-                    tempTable.size+=1
-        tempTable.columns = list(newColumns)
+
+                addRow = False
+                
+            tempTable.columns = list(newColumns)
         return tempTable
     
     def max(self, column):

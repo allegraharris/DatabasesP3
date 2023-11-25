@@ -53,6 +53,8 @@ MULTI_SELECT = False
 SELECT_WITH_TABLE_NAMES = False
 AGGREGATE = False
 WHERE = False
+SIMPLE_SINGLE_WHERE = False
+SIMPLE_DOUBLE_WHERE = False
 
 ### Input Parsing ###
 #-----------------------------------------------------------#
@@ -197,13 +199,25 @@ def select():
     tempTable = Table()
     if(SIMPLE_SELECT):
         table_name = query_tokens[3]
-
         if(',' in query_tokens[1]):
             columns = [value.strip() for value in query_tokens[1].split(',')]
         else:
             columns = [query_tokens[1]]
 
-        tempTable = databases[table_name].copyColumns(tempTable, columns)
+        if(SIMPLE_SINGLE_WHERE):
+            numChars = len(query_tokens[4])
+            cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
+            pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
+            conditions = re.split(pattern, cleanClause)
+            conditions = [value.strip() for value in conditions if value.strip()]
+
+            tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 1)
+
+        elif(SIMPLE_DOUBLE_WHERE):
+            print('DO SOMETHING HERE')
+        else:
+            tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
+            
         tempTable.print_internal()
     elif(SIMPLE_WILDCARD):
         table_name = query_tokens[3]
@@ -215,35 +229,27 @@ def select():
         else:
             columns = [query_tokens[1].split('.')[1]]
 
-        tempTable = databases[table_name].copyColumns(tempTable, columns)
+        tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
         tempTable.print_internal()
-    elif(MULTI_SELECT):
-         #print("Holding off on this for now - I don't think I need to implement this")
-        '''
-        table_column_dict = {}
-        pairs = query_tokens[1].split(',')
-
-        for pair in pairs:
-            table_name, column_name = pair.strip().split('.')
-       
-            if table_name in table_column_dict:
-                table_column_dict[table_name].append(column_name)
-            else:
-                table_column_dict[table_name] = [column_name]
-        '''
     elif(AGGREGATE):
-        table_name = query_tokens[3]
-        pattern = r'^max\(([^)]+)\)$'
+        if(SIMPLE_SINGLE_WHERE):
+            print('DO SOMETHING HERE')
+        elif(SIMPLE_DOUBLE_WHERE):
+            print('DO SOMETHING HERE')
+        else: 
+            table_name = query_tokens[3]
+            pattern = r'^max\(([^)]+)\)$'
 
-        match = re.match(pattern, query_tokens[1].strip())
+            match = re.match(pattern, query_tokens[1].strip())
 
-        if('.' in match.group(1)):
-            column_name = match.group(1).strip().split('.')[1]
-        else:
-            column_name = match.group(1)
+            if('.' in match.group(1)):
+                column_name = match.group(1).strip().split('.')[1]
+            else:
+                column_name = match.group(1)
 
-        tempTable = databases[table_name].max(column_name)
-        tempTable.print_internal()
+            tempTable = databases[table_name].max(column_name)
+            tempTable.print_internal()
+
 
 
 
@@ -637,6 +643,7 @@ def validateMultiSelectWildcard():
     return True
 
 def validateWhere(joining_tables, table_name, where_clause, join):
+
     numChars = len(where_clause)
     numOperators = 0
     numConditions = 0
@@ -654,6 +661,12 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 
     if(numConditions > 1 or numOperators > 2):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
+    if(numOperators == 1 and join == False):
+        global SIMPLE_SINGLE_WHERE
+        SIMPLE_SINGLE_WHERE = True
+    elif(numOperators == 2 and join == False):
+        global SIMPLE_DOUBLE_WHERE
+        SIMPLE_DOUBLE_WHERE = True
     
     if(join):
         #isolating column names using regex
