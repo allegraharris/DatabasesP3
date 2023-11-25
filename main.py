@@ -49,6 +49,10 @@ PROMPT2 = "> "
 
 SIMPLE_SELECT = False
 SIMPLE_WILDCARD = False
+MULTI_SELECT = False
+SELECT_WITH_TABLE_NAMES = False
+AGGREGATE = False
+WHERE = False
 
 ### Input Parsing ###
 #-----------------------------------------------------------#
@@ -190,10 +194,8 @@ def eval_query():
     raise Syntax_Error("Unknown SQL Command")
 
 def select():
-    if(SIMPLE_WILDCARD and SIMPLE_SELECT == False):
-        table_name = query_tokens[3]
-        databases[table_name].print_internal()
-    elif(SIMPLE_SELECT):
+    tempTable = Table()
+    if(SIMPLE_SELECT):
         table_name = query_tokens[3]
 
         if(',' in query_tokens[1]):
@@ -201,10 +203,51 @@ def select():
         else:
             columns = [query_tokens[1]]
 
-        tempTable = Table()
         tempTable = databases[table_name].copyColumns(tempTable, columns)
-
         tempTable.print_internal()
+    elif(SIMPLE_WILDCARD):
+        table_name = query_tokens[3]
+        databases[table_name].print_internal()
+    elif(SELECT_WITH_TABLE_NAMES):
+        table_name = query_tokens[3]
+        if(',' in query_tokens[1]):
+            columns = [column.split('.')[1].strip() for column in query_tokens[1].split(',')]
+        else:
+            columns = [query_tokens[1].split('.')[1]]
+
+        tempTable = databases[table_name].copyColumns(tempTable, columns)
+        tempTable.print_internal()
+    elif(MULTI_SELECT):
+         #print("Holding off on this for now - I don't think I need to implement this")
+        '''
+        table_column_dict = {}
+        pairs = query_tokens[1].split(',')
+
+        for pair in pairs:
+            table_name, column_name = pair.strip().split('.')
+       
+            if table_name in table_column_dict:
+                table_column_dict[table_name].append(column_name)
+            else:
+                table_column_dict[table_name] = [column_name]
+        '''
+    elif(AGGREGATE):
+        table_name = query_tokens[3]
+        pattern = r'^max\(([^)]+)\)$'
+
+        match = re.match(pattern, query_tokens[1].strip())
+
+        if('.' in match.group(1)):
+            column_name = match.group(1).strip().split('.')[1]
+        else:
+            column_name = match.group(1)
+
+        tempTable = databases[table_name].max(column_name)
+        tempTable.print_internal()
+
+
+
+
 
 
 
@@ -276,6 +319,7 @@ def validateExecute(tokens):
 #------------------------------------------------------------------------------#
 
 def validateSelect(): 
+    global AGGREGATE
     length = len(query_tokens)
     select_columns = []
     table_name = ''
@@ -291,14 +335,20 @@ def validateSelect():
             if(query_tokens[4] == 'JOIN'):
                 return validateJoin()
             elif(',' in query_tokens[3]):
+                ### MIGHT GET RID OF THIS ###
+                global MULTI_SELECT
+                MULTI_SELECT = True
                 return validateMultiSelect()
             elif('(' in query_tokens[1]):
                 if(')' in query_tokens[1]):
+                    AGGREGATE = True
                     validateAggregateFunction()
                 else: 
                     raise Syntax_Error("Syntax Error: no closing parentheses")
             else:
                 select_columns = validateSelectWithTableNames()
+                global SELECT_WITH_TABLE_NAMES
+                SELECT_WITH_TABLE_NAMES = True
                     
     #wildcard select        
     elif(query_tokens[1] == '*'):
@@ -312,6 +362,7 @@ def validateSelect():
             if(query_tokens[4] == 'JOIN'):
                 return validateWildcardJoin()
         if(',' in table_name):
+            ### MIGHT GET RID OF THIS ###
             return validateMultiSelectWildcard()
         if(table_name not in databases):
             raise Not_Exist("Table does not exist")
@@ -323,6 +374,7 @@ def validateSelect():
             SIMPLE_WILDCARD = True
     elif('(' in query_tokens[1]):
         if(')' in query_tokens[1]):
+            AGGREGATE = True
             validateAggregateFunction()
         else:
             raise Syntax_Error("Syntax Error: no closing parentheses")
@@ -349,6 +401,8 @@ def validateSelect():
 
     if(length >= 5):
         if(query_tokens[4].startswith('WHERE')):
+            global WHERE
+            WHERE = True
             return validateWhere([], table_name, query_tokens[4], False)
         elif(query_tokens[4].strip() != ';'):
             raise Syntax_Error('Syntax Error: ' + query_tokens[4])
@@ -666,6 +720,9 @@ def validateAggregateFunction():
                 raise Not_Exist('HERE 2: Table does not exist')
             if(column_name not in databases[table_name].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
+    
+    if(databases[from_table_name].column_data[column_name][0] != 'INT'):
+        raise Unsupported_Functionality('Unsupported Functionality: max(column) only supported for integer types')
 
     if(len(query_tokens) >= 5):
         if(query_tokens[4].startswith('WHERE')):
@@ -678,6 +735,20 @@ def validateAggregateFunction():
 
 ### END OF SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
+
+#Helper
+'''
+
+def onlyTrue(c):
+    for flag in FLAGS:
+        if flag == c:
+            if FLAGS[flag] == False:
+                return False
+        else:
+            if FLAGS[flag] == True:
+                return False
+    return True
+'''
 
 ### OPTIMISATION FUNCTIONS ###
 #------------------------------------------------------------------------------#

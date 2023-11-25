@@ -7,11 +7,12 @@ class Table {
 
 databases = {} # global variable database that stores all of the tables
 
+INT_MIN = -2147483647
+
 import re
 from BTrees._OOBTree import OOBTree
 from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
-
 class Table:
     def __init__(self):
         self.columns = list()
@@ -178,7 +179,6 @@ class Table:
         print(tb(tuples,headers,tablefmt='outline'))
 
     def copyColumns(self, tempTable, newColumns):
-        
         for key, inner_dict in self.indexing.items():
             if key not in tempTable.indexing:
                 tempTable.indexing[key] = {}
@@ -190,6 +190,32 @@ class Table:
                         tempTable.indexing[key][column].add(value)
                     tempTable.size+=1
         tempTable.columns = list(newColumns)
-                    
+        return tempTable
+    
+    def max(self, column):
+        max = INT_MIN
+        if(column in self.pri_keys):
+            if(len(self.pri_keys) == 1):
+                for key in self.indexing.keys():
+                    value = int(next(iter(key)))
+                    if(value > max):
+                        max = value
+            else: 
+                for key, cols in self.indexing.items():
+                    value = cols[column]
+                    if(value > max):
+                        max = value
+        else:
+            for key, cols in self.indexing.items():
+                value = cols[column]
+                if(value > max):
+                    max = value
+                
+
+        tempTable = Table()
+        tempTable.columns = ["max(" + str(column) + ")"]
+        tempTable.indexing[0] = {}
+        tempTable.indexing[0]["max(" + str(column) + ")"] = max
+        tempTable.size = 1
 
         return tempTable
