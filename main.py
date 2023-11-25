@@ -38,15 +38,14 @@ class Table:
 import sqlparse
 import time
 import re
-from BTrees._OOBTree import OOBTree
 from tabulate import tabulate as tb
-from treelib import Node, Tree
-# from test import eval_query
-# import test
-# import getch
+from BTrees._OOBTree import OOBTree
+from table import Table, databases
+from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 
-keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','INT','STRING','PRIMARY','FOREIGN','KEY', 'WHERE']
-sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT', 'SELECT'] # keyWord is not case sensitive
+
+keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE']
+sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT','EXECUTE']
 LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
@@ -56,56 +55,21 @@ quitting = False
 PROMPT = "-> "
 PROMPT2 = "> "
 
-SIMPLE_SELECT = False
-SIMPLE_WILDCARD = False
+### Input Parsing ###
+#-----------------------------------------------------------#
 
-#databases = {}
-describe_columns = { 'Field':['STRING',0], 'Type':['STRING',0], 'Primary':['STRING',0]} # describe
-# Column 
-
-# general syntax error
-class Syntax_Error(Exception):
-    def __init__(self, message="Syntax Error"):
-        self.message = message
-        super().__init__(self.message)
-
-# Error if non-keyword use preserved keyword
-class Keyword_Used(Exception):
-    def __init__(self, message="Keyword_Used"):
-        self.message = message
-        super().__init__(self.message)
-
-class Invalid_Type(Exception):
-    def __init__(self, message="Invalid Data Type"):
-        self.message = message
-        super().__init__(self.message)
-
-# Error if item is repeated. Such as repeated primary key, repeated column, etc.
-class Duplicate_Item(Exception):
-    def __init__(self, message="Duplicate Item"):
-        self.message = message
-        super().__init__(self.message)
-
-class TABLE_EXIST(Exception):
-    def __init__(self, message="Table not exist"):
-        self.message = message
-        super().__init__(self.message)
-
-class Unsupported_Functionality(Exception):
-    def __init__(self, message="Unsupported functionality"):
-        self.message = message
-        super().__init__(self.message)
-
-# Begin Parsing Functions
 def readInput():
     global sql_query
     sql_query = ""
     userInput = input(PROMPT)
-    if ';' in userInput:
+    if len(userInput) == 0 or userInput.isspace():
+        readInput()
+        return
+    if ';' in userInput: 
         sql_query += userInput.split(';')[0]
         sql_query += ';'
         return
-    if userInput == "quit":
+    if userInput == "quit": # special keyword quit;
         sql_query += userInput + ';'
         return
     sql_query += userInput + ' '
@@ -123,17 +87,16 @@ def readInput2():
     readInput2()
 
 def filter():
-    global sql_query
-    global query_tokens
-    sql_query = sqlparse.format(sql_query,reindent=False, keyword_case='upper')
+    global sql_query, query_tokens
+    sql_query = sqlparse.format(sql_query,reindent=False, keyword_case='upper') # reformat user input
     query_tokens = []
-    parsed = sqlparse.parse(sql_query)
+    parsed = sqlparse.parse(sql_query) 
     for statement in parsed:
         for token in statement.tokens:
             if token.value.strip():
                 query_tokens.append(token.value)
 
-# End of parsing functions
+### End od Input Parsing
 
 # some special function
 # check if user input is keyword
@@ -145,228 +108,157 @@ def is_keyword(word):
 
 
 ## Begin evaluation functions
-def find_operation():
-    try:
-        return sqlCommand.index(query_tokens[0])
-    except ValueError:
-        return -1
     
 def show_table():
-    table = [{'Tables \n------':['STRING',0]},[],set(),dict()] #What is going on with the empty list, set and dict? Do I need to modify?
-    for table_name in databases.keys():
-        list = [table_name]
-        table.append(list)
-    return table
+    headers = ['Tables']
+    tables = []
+    for table in databases.keys():
+        tables.append([table])
+    if len(tables) == 0:
+        print("<Empty Set>")
+        return
+    print(tb(tables,headers,tablefmt='outline'))
+    return
 
 def create_table():
-    global databases
-    validateTableName(query_tokens[2])
-    table_name = query_tokens[2]
     table = Table()
     table = parse_columns(table)
-    databases[table_name] = table
-    return ["Query OK, 0 rows affected"]
+    databases[query_tokens[2]] = table
+    print("Query OK, 0 rows affected")
+    return
 
 def parse_columns(table):
-    primary_flag = False
-    parsed = query_tokens[3]
-    if parsed[0] != '(' or parsed[len(parsed)-1] != ')':
-        raise Syntax_Error("Syntax Error: attributes is invalid")
-    if len(parsed) == 2 or parsed[1:len(parsed)-1].isspace():
-        raise Syntax_Error("Syntax Error: attributes cannot be empty")
-    attributes = re.split(r',\s*(?![^()]*\))', parsed[1:len(parsed)-1].strip())
-    # print(attributes)
-    index = 0
+    attributes = validateTableInput(query_tokens[3]) # parse columns into column and validate at the same time
     for attribute in attributes:
-        tokens = re.split(r' \s*(?![^()]*\))',attribute.strip())
-
-        name = tokens[0]
-        type = tokens[1].upper()
-        if name == 'PRIMARY':
-            if len(tokens) > 3 or tokens[1].upper().startswith('KEY') == False:
-                raise Syntax_Error("Syntax Error: Primary key")
-            #this handles if someone writes primary key(a) instead of primary key (a)
-            if(tokens[1].upper() != 'KEY'): 
-                keys = tokens[1][3:]
-                keys = keys[1:len(keys)-1].strip().split(',')
-            else: 
-                keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
-
-            for key in keys:
-                if key.strip() not in table.columns: #table[0]
-                    raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
-                table.columns[key.strip()][1] = 1 #table[0][key.strip()][1] = 1
-                table.primary = key.strip() #table[2].add(key.strip())
-                
-            primary_flag = True
-        if name == 'FOREIGN':
-            if len(tokens) > 3 or tokens[1].upper().startswith('KEY') == False:
-                raise Syntax_Error("Syntax Error: Foreign key")
-            #this handles if someone writes foreign key(a) instead of foreign key (a)
-            if(tokens[1].upper() != 'KEY'):
-                keys = tokens[1][3:]
-                keys = keys[1:len(keys)-1].strip().split(',')
-            else: 
-                keys = tokens[2][1:len(tokens[2])-1].strip().split(',')
-            for key in keys:
-                if key.strip() not in table.columns: #table[0]
-                    raise Syntax_Error("Syntax Error: Column '" + key + "' does not exist")
-                table.columns[key.strip()][1] = 2 #table[0][key.strip()][1] = 2
-                table.primary = key.strip() #table[2].add(key.strip()) - should we be adding as a primary key if its foreign??
-        if name != 'PRIMARY':
-            if name in table.columns: #table[0]:
-                raise Duplicate_Item("Duplicate column name " + tokens[0])
-            if type not in datatype:
-                raise Invalid_Type("Invalid Data type '" + tokens[1] + "'")
-            table.columns[name] = [type, 0, index] #table[0][name] = [type,0,index]
-            index = index+1
-            table.column.append(name) #table[1].append(name)  
-    if(primary_flag == False):
-        raise Syntax_Error('Syntax Error: relation must have a primary key') 
+        table.add_attribute(attribute) # add attributes to the table
+    if table.pri_lock == False: # check if primary key is defined
+        raise Syntax_Error("Syntax Error: no Primary Key defined")
     return table
 
-
 def describe_table(table_name):
-    my_table = [describe_columns,list(),set(),dict()]
-    table = databases[table_name]
-    columns = table.columns #table[0]
-    for column in columns:
-        my_table.append([column, columns[column][0],columns[column][1]])
-    return my_table
+    databases[table_name].describe()
 
-def insert(table_name):
-    num = 0
-    add_tuples = list()
-    tuples = query_tokens[3][6:len(query_tokens[3])].strip()
-    # print(tuples)
-    items = re.split(r',\s*(?![^()]*\))',tuples)
-    columns = databases[table_name].columns #databases[table_name][0]
-    column = databases[table_name].column #databases[table_name][1]
-    primary_key = databases[table_name].primary #primary_keys = databases[table_name].primary #this gives me the name of the primary key
-    # print(tuples)
-    # print(values)
-    for item in items:
-        values = re.split(r',\s*(?=(?:[^\'"]*[\'"][^\'"]*[\'"])*[^\'"]*$)',item[1:len(item)-1].strip())
-        Tuple = {} #Tuple = list()
-        index = 0
-        for value in values:
-            if columns[column[index]][0] == 'INT':
-                Tuple[column[index]] = (int(value.strip())) #Tuple.append(int(value.strip()))
-            else:
-                Tuple[column[index]] = value.strip()[1:len(value.strip())-1] #Tuple.append(value.strip()[1:len(value.strip())-1])
-            index += 1
-        add_tuples.append(Tuple)
-        num += 1
-    
-    #I HAVE GOTTEN UP TO HERE
+def insert(table_name,tuples):
+    databases[table_name].add_tuples(tuples)
 
-
-    for Tuple in add_tuples:
-        databases[table_name].tuples[Tuple[primary_key]] = Tuple #this should add a tuple to the table
-
-        #databases[table_name].append(Tuple)
-        #tuple_keys = set()
-        #for key in primary_keys:
-            #tuple_keys.add(Tuple[columns[key][2]])
-        # print(tuple_keys)
-        #databases[table_name][3][tuple(tuple_keys)] = Tuple
-    return [f"Query OK, {num} rows affected"]
-    
+def execute(filename):
+    global sql_query, query_tokens
+    try:
+        with open(filename,'r') as file:
+            file_content = file.read().replace('\n',' ')
+    except FileNotFoundError:
+        print(f"File {filename} not found")
+    sql_query = sqlparse.format(file_content,reindent=False, keyword_case='upper')
+    sql_queries = sqlparse.parse(sql_query)
+    for stmt in sql_queries:
+        query_tokens = []
+        for token in stmt.tokens:
+            if token.value.strip():
+                query_tokens.append(token.value)
+        start_time = time.time()
+        eval_query()
+        end_time = time.time()
+        print(f"Time: {end_time-start_time:.3f}s")
+        print()
+    return
 
 def eval_query():
-    optr = find_operation()
-    # print(optr)
-    if optr == 0:
-        if query_tokens[1] != 'TABLE' or len(query_tokens) != 5:
-            raise Syntax_Error("Syntax Error: TABLE")
-        table_name = query_tokens[2]
-        if is_keyword(table_name):
-            raise Keyword_Used("Keyword used:" + query_tokens[2])
-        if table_name in databases:
-            raise TABLE_EXIST("Table '" + table_name + "' exists")
-        return create_table()
-    if optr == 1:
+    optr = query_tokens[0]
+    if optr == 'CREATE':
+        validateCreateTable(query_tokens)
+        create_table()
+        return
+    elif optr == 'SHOW':
         if len(query_tokens) != 3 or query_tokens[1] != 'TABLES':
             raise Syntax_Error("Syntax Error: SHOW TABLES")
-        return show_table()
-    if optr == 2:
-        if len(query_tokens) != 3:
-            raise Syntax_Error("Syntax Error: Describe")
-        if query_tokens[1] not in databases:
-            raise TABLE_EXIST("Table '" + query_tokens[1] + "' does not exist")
-        return describe_table(query_tokens[1])
-    if optr == 3:
-        if query_tokens[1] != 'INTO' or len(query_tokens) != 5:
-            raise Syntax_Error("Syntax Error: INSERT")
-        insert_info = re.split(r' \s*(?![^()]*\))',query_tokens[2])
-        table_name = insert_info[0]
-        if table_name not in databases:
-            raise TABLE_EXIST("Table '" + insert_info[0] + "' does not exist")
-        column = insert_info[1]
-        if len(column) == 2 or column[1:len(column)-1].strip().isspace():
-            return insert(table_name)
-        attributes = column[1:len(column)-1].strip().split(',')
-        for attribute in attributes:
-            if attribute.strip() not in databases[table_name].columns: #databases[table_name][0]:
-                raise TABLE_EXIST(f"Column {attribute.strip()} does not exist")
-        return insert(table_name)
-    if optr == 4:
+        show_table()
+        return
+    elif optr == 'DESCRIBE':
+        table_name = validateDescribe(query_tokens)
+        describe_table(table_name)
+        return
+    elif optr == 'INSERT':
+        table_name = validateInsert(query_tokens)
+        prev_size = databases[table_name].size
+        insert(table_name,query_tokens[3][6:len(query_tokens[3])].strip())
+        cur_size = databases[table_name].size
+        print(f"Query OK, {cur_size-prev_size} rows affected")
+        return
+    elif optr == 'EXECUTE':
+        filename = validateExecute(query_tokens)
+        execute(filename)
+        return
+    elif optr == 4:
         if(validateSelect()):
             select()
         else:
             print('FAILED!')
-        
     raise Syntax_Error("Unknown SQL Command")
 
-# R is our relations
-def print_table(R):
-    if len(R) == 1: # not relation output (create, insert)
-        print(R[0])
-        return
-    if len(R) == 4:
-        print("Empty set")
-        return
-    message = []
-    title = ""
-    for key in R[0].keys():
-        title += f"{key:20}"
-    message.append(title)
-    for i in range (4,len(R)):
-        tuple = ""
-        for attribute in R[i]:
-            tuple += f"{attribute:20}"
-        message.append(tuple)
-    for line in message:
-        print(line)
-    return 
+def select():
+    print('select')
+
+### VALIDATE SQL COMMAND ###
+#------------------------------------------------------------------------------#
+
+# 1. Validate CREATE TABLE
+
+def validateCreateTable(tokens):
+    if len(tokens) != 5 or tokens[1] != 'TABLE':
+        raise Syntax_Error("Syntax Error: CREATE TABLE")
+    validateTableName(tokens[2])
 
 def validateTableName(table_name):
-    if(is_keyword(table_name)):
-        raise Syntax_Error('Syntax Error: invalid table name ' + table_name)
-    
+    if table_name in databases:
+        raise Duplicate_Item("Table '" + table_name + "' exists")
+    if (is_keyword(table_name)):
+        raise Syntax_Error("Syntax Error: invalid table name: " + table_name)
     if(all(char.isalnum() or char == '_' for char in table_name) != True):
         raise Syntax_Error('Syntax Error: invalid table name ' + table_name)
 
-def select():
-    print('in here')
-    '''
-    if(SIMPLE_SELECT):
-        columns_list = []
-        table_name = query_tokens[3]
+def validateTableInput(cols_data):
+    length = len(cols_data)
+    if cols_data[0] != '(' or cols_data[length-1] != ')':
+        raise Syntax_Error("Syntax Error: attributes is invalid")
+    if length == 2 or cols_data[1:length-1].isspace():
+        raise Syntax_Error("Syntax Error: attributes cannot be empty")
+    cols_data = cols_data[1:length-1].strip()
+    attributes = re.split(r',\s*(?![^()]*\))', cols_data)
+    return attributes
 
-        if(',' not in query_tokens[1]):
-            columns_list = [query_tokens[1].strip()]
-        else: 
-            columns_list = [column.strip() for column in query_tokens[1].split(',')]
-    '''
-    if(SIMPLE_WILDCARD == True):
-        print('in simple wildcard')
-        table_name = query_tokens[3]
-        columns_list = databases[table_name][0]
+# 2. Validate Insert
+def validateInsert(tokens):
+    if len(tokens) != 5 or tokens[1] != 'INTO':
+        raise Syntax_Error("Syntax Error: INSERT")
+    insert_info = re.split(r' \s*(?![^()]*\))',tokens[2])
+    if len(insert_info) != 2:
+        raise Syntax_Error("Syntax Error: INSERT[2]")
+    table_name = insert_info[0]
+    if table_name not in databases:
+        raise Not_Exist(f"Table {table_name} does not exist")
+    columns = insert_info[1][1:len(insert_info)-1].strip()
+    columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
+    # print(columns)
+    if len(columns) != 0:
+        for i in range (0,len(columns)):
+            if columns[i] != databases[table_name].columns[i]:
+                raise Syntax_Error("Syntax Error: INSERT Columns does not match")
+    if tokens[3] == 'VALUES':
+        raise Syntax_Error("Syntax Error: Empty VALUES, no tuples inserted")
+    return table_name
 
-        relation = databases[table_name][4:]
+# 3. Validate Describe:
+def validateDescribe(tokens):
+    if len(tokens) != 3:
+        raise Syntax_Error("Syntax Error: Describe")
+    if tokens[1] not in databases:
+        raise Not_Exist(f"Table {query_tokens[1]} does not exist")
+    return tokens[1]
 
-        print(tb(relation, headers=columns_list))
+def validateExecute(tokens):
+    if len(tokens) != 3:
+        raise Syntax_Error("Syntax Error: Execute")
+    return tokens[1]
 
 
 ### SELECTION VALIDATION FUNCTIONS ###
@@ -407,7 +299,7 @@ def validateSelect():
         if(',' in table_name):
             return validateMultiSelectWildcard()
         if(table_name not in databases):
-            raise TABLE_EXIST("Table does not exist")
+            raise Not_Exist("Table does not exist")
         #validate all columns exist in the table
         else:
             print('in wildcard')
@@ -432,7 +324,7 @@ def validateSelect():
         raise Syntax_Error("Syntax Error: ambiguous column(s) selected")
     else:
         if(query_tokens[3] not in databases):
-            raise TABLE_EXIST("Table does not exist")
+            raise Not_Exist("Table does not exist")
         #validate all columns exist in the table (we already know they exist if we did a wildcard select)
         elif(wildcardFlag != True): 
             table_name = query_tokens[3]
@@ -471,7 +363,7 @@ def validateJoin():
     #validate all tables and their columns
     for table in table_column_dict:
         if(table not in databases):
-            raise TABLE_EXIST("Table does not exist")
+            raise Not_Exist("Table does not exist")
         for column in table_column_dict[table]:
             if(column not in databases[table][0]):
                 raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
@@ -492,7 +384,7 @@ def validateJoin():
     #checking that tables we're joining on exist 
     for table in joining_tables:
         if(table not in databases):
-            raise TABLE_EXIST("Table does not exist")
+            raise Not_Exist("Table does not exist")
 
     #checking that we're selecting from tables that are specified in the join
     for table in table_column_dict:
@@ -552,7 +444,7 @@ def validateWildcardJoin():
     #checking that tables we're joining on exist 
     for table in tables:
         if(table not in databases):
-            raise TABLE_EXIST("Table does not exist")
+            raise Not_Exist("Table does not exist")
         
     if(query_tokens[6] != 'ON'):
         raise Syntax_Error('Syntax Error: Invalid join syntax')
@@ -568,7 +460,7 @@ def validateWildcardJoin():
         table, column = pair.strip().split('.')
 
         if(table not in databases):
-            raise TABLE_EXIST('Table does not exist')
+            raise Not_Exist('Table does not exist')
         
         if(column not in databases[table][0]):
             raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
@@ -603,7 +495,7 @@ def validateSelectWithTableNames():
         table_nm = str(next(iter(table_column_dict.keys())))
 
         if(table_nm not in databases):
-            raise TABLE_EXIST('Table does not exist')
+            raise Not_Exist('Table does not exist')
         
         if(table_nm != query_tokens[3]):
             raise Syntax_Error("Syntax Error: cannot select from a table that hasn't been specified")
@@ -631,7 +523,7 @@ def validateMultiSelect():
     
     for table in table_column_dict: 
         if(table not in databases):
-            raise TABLE_EXIST('Table does not exist')
+            raise Not_Exist('Table does not exist')
         for column in table_column_dict[table]:
             if(column not in databases[table][0]):
                 raise Syntax_Error("Syntax Error: Column " + column + " does not exist")
@@ -643,7 +535,7 @@ def validateMultiSelect():
 
     for table in from_tables:
         if(table not in databases):
-            raise TABLE_EXIST('Table does not exist')
+            raise Not_Exist('Table does not exist')
 
     for table in table_column_dict:
         if(table not in from_tables):
@@ -665,7 +557,7 @@ def validateMultiSelectWildcard():
 
     for table in from_tables: 
         if(table not in databases):
-            raise TABLE_EXIST('Table does not exist')
+            raise Not_Exist('Table does not exist')
         
     if(len(query_tokens) >= 5):
         if(query_tokens[4].startswith('WHERE')):
@@ -701,7 +593,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 
         for pair in tables_and_columns:
             if(pair[0] not in databases):
-                raise TABLE_EXIST('Table ' + pair[0] + ' does not exist')
+                raise Not_Exist('Table ' + pair[0] + ' does not exist')
             if(pair[0] not in joining_tables): 
                 raise Syntax_Error('Syntax Error: ' + pair[0])
             if(pair[1] not in databases[pair[0]][0]):
@@ -748,7 +640,7 @@ def validateAggregateFunction():
 
     if(table_name == ''):
         if(from_table_name not in databases):
-            raise TABLE_EXIST('HERE 1: Table does not exist')
+            raise Not_Exist('HERE 1: Table does not exist')
         if(column_name not in databases[from_table_name][0]):
             raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
     else: 
@@ -756,7 +648,7 @@ def validateAggregateFunction():
             raise Syntax_Error('Syntax Error: Cannot select from a table that is not specified')
         else:
             if(table_name not in databases):
-                raise TABLE_EXIST('HERE 2: Table does not exist')
+                raise Not_Exist('HERE 2: Table does not exist')
             if(column_name not in databases[table_name][0]):
                 raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
 
@@ -823,7 +715,7 @@ while quitting == False:
         if query_tokens[0] == "quit":
             break
         start_time = time.time()
-        print_table(eval_query())
+        eval_query()
         end_time = time.time()
         print(f"Time: {end_time-start_time:.3f}s")
         # print(databases)
@@ -836,11 +728,11 @@ while quitting == False:
         print(f"{e}")
     except Duplicate_Item as e:
         print(f"{e}")
-    except TABLE_EXIST as e:
+    except Not_Exist as e:
+        print(f"{e}")
+    except Unsupported_Functionality as e:
         print(f"{e}")
 for table in databases.keys():
-    print(databases[table])
+    databases[table].describe()
+    databases[table].print_internal()
     
-
-
-
