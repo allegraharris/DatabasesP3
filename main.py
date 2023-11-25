@@ -95,6 +95,7 @@ def show_table():
         print("<Empty Set>")
         return
     print(tb(tables,headers,tablefmt='outline'))
+    print(f"{len(tables)} rows in set")
     return
 
 def create_table():
@@ -126,15 +127,21 @@ def execute(filename):
             file_content = file.read().replace('\n',' ')
     except FileNotFoundError:
         raise FileNotFoundError(f"File {filename} not found")
-    sql_query = sqlparse.format(file_content,reindent=False, keyword_case='upper')
-    sql_queries = sqlparse.parse(sql_query)
-    for stmt in sql_queries:
+    start_time = time.time()
+    statements = sqlparse.split(file_content)
+    # print(statements)
+    end_time = time.time()
+    print(f"Parsing Time: {end_time-start_time:.3f}s")
+    for statement in statements:
         start_time = time.time()
-        query_tokens = []
-        for token in stmt.tokens:
-            if token.value.strip():
-                query_tokens.append(token.value)
-        eval_query()
+        sql_query = sqlparse.format(statement,reindent=False,keyword_case='upper')
+        sql_query = sqlparse.parse(sql_query)
+        for stmt in sql_query:
+            query_tokens = []
+            for token in stmt.tokens:
+                if token.value.strip():
+                    query_tokens.append(token.value)
+            eval_query()
         end_time = time.time()
         print(f"Time: {end_time-start_time:.3f}s")
         print()
@@ -208,7 +215,7 @@ def validateTableInput(cols_data):
 def validateInsert(tokens):
     if len(tokens) != 5 or tokens[1] != 'INTO':
         raise Syntax_Error("Syntax Error: INSERT")
-    insert_info = [token for token in re.split(r'\s+|([a-zA-Z_]+)|(\([^)]+\))',tokens[2]) if token]
+    insert_info = [token for token in re.split(r'\s(?![^()]*\))',tokens[2]) if token]
     if len(insert_info) > 2:
         raise Syntax_Error("Syntax Error: INSERT[2]")
     table_name = insert_info[0]
@@ -705,7 +712,7 @@ while quitting == False:
         print(f"{e}")
     except FileNotFoundError as e:
         print(f"{e}")
-for table in databases.keys():
-    databases[table].describe()
-    databases[table].print_internal()
+# for table in databases.keys():
+#     databases[table].describe()
+#     databases[table].print_internal()
     

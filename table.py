@@ -161,6 +161,7 @@ class Table:
             tuples.append(tuple)
         print(f"Table {self.name}:")
         print(tb(tuples, headers, tablefmt='outline'))
+        print(f"{len(tuples)} rows in set")
         return
 
     def describe(self):
@@ -178,3 +179,4 @@ class Table:
                 tuple.append('FOR')
             tuples.append(tuple)
         print(tb(tuples,headers,tablefmt='outline'))
+        print(f"{len(tuples)} rows in set")
