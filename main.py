@@ -39,6 +39,7 @@ from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, 
 keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE']
 sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT','EXECUTE']
 LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
+STRING_OPERATORS = ['=', '!=']
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
 sql_query = "CREATE TABLE people ( key_no INT NOT NULL, first_name INT NOT NULL, last_name INT NOT NULL, primary_key (key_no) );"
@@ -214,7 +215,11 @@ def select():
             tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 1)
 
         elif(SIMPLE_DOUBLE_WHERE):
-            print('DO SOMETHING HERE')
+            numChars = len(query_tokens[4])
+            cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
+            pattern = fr"(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)\s(AND|OR)\s(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)"
+            matches = re.match(pattern, cleanClause)
+            conditions = [matches.group(i).strip() for i in range(1, 8)]
         else:
             tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
             

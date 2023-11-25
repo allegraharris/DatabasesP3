@@ -1,7 +1,7 @@
-create table test (a int, b int, c int, primary key(a));
-insert into test (a,b,c) values (1,2,3);
-insert into test (a,b,c) values (2,3,4);
-insert into test (a,b,c) values (3,4,5);
-insert into test (a,b,c) values (4,5,6);
+create table test (a string, b string, c string, primary key(a));
+insert into test (a,b,c) values ('a','b','c');
+insert into test (a,b,c) values ('b','c','d');
+insert into test (a,b,c) values ('c','d','e');
+insert into test (a,b,c) values ('d','e','f');
 
-select a,b,c from test where a = 2;
+select a,b,c from test where a = 'd';

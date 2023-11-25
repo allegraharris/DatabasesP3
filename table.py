@@ -15,21 +15,29 @@ from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 
 def evaluateCondition(value1, operator, value2):
-        value2 = int(value2)
-
-        if operator == '=':
-            return value1 == value2
-        elif operator == '!=':
-            return value1 != value2
-        elif operator == '>':
-            return value1 > value2
-        elif operator == '>=':
-            return value1 >= value2
-        elif operator == '<':
-            return value1 < value2
-        elif operator == '<=':
-            return value1 <= value2
-        
+        try:
+            value2 = int(value2)
+            if operator == '=':
+                return value1 == value2
+            elif operator == '!=':
+                return value1 != value2
+            elif operator == '>':
+                return value1 > value2
+            elif operator == '>=':
+                return value1 >= value2
+            elif operator == '<':
+                return value1 < value2
+            elif operator == '<=':
+                return value1 <= value2
+        except ValueError:
+            value2 = value2.replace("'", "")
+            if operator == '=':
+                return value1 == value2
+            elif operator == '!=':
+                return value1 != value2
+            else:
+                raise Syntax_Error('Syntax Error: can only use = or != on string type')
+                
         return False
 class Table:
     def __init__(self):
@@ -228,7 +236,7 @@ class Table:
                         tempTable.indexing[key][column] = value
 
                 addRow = False
-                
+
             tempTable.columns = list(newColumns)
         return tempTable
     
