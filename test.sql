@@ -1,6 +1,18 @@
-create table students (id int, first_name string, last_name string, primary key (id,first_name) );
-show tables;
-desribe students;
-insert into students (id,first_name,last_name) values (1,'charlie','mei'), (2,'allegra','harris'), (3,'sarah','green');
-select a.name b.info from TABLE1 a LEFT JOIN table2 b ON a.name = b.name;
--- {id}
+create table departments (
+    dep_id INT, 
+    dep_name STRING, 
+    primary key (dep_id)
+);
+create table employees (
+    emp_id INT, 
+    emp_name STRING, 
+    dep_id INT, 
+    primary key (emp_id), 
+    foreign key (dep_id) references departments(dep_id)
+);
+
+INSERT INTO departments () 
+    VALUES (1,'chem'), (2,'math'), (3,'cs'), (4,'physics'), (5,'biology');
+
+INSERT INTO employees () 
+    VALUES (822278827,'charlie mei',3), (235123,'allegra harris',2), (2358437820,'sarah green',4);
