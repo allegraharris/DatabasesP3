@@ -230,7 +230,30 @@ def select():
         tempTable.print_internal()
     elif(SIMPLE_WILDCARD):
         table_name = query_tokens[3]
-        databases[table_name].print_internal()
+        columns = databases[table_name].columns
+
+        if(SIMPLE_SINGLE_WHERE):
+            numChars = len(query_tokens[4])
+            cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
+            pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
+            conditions = re.split(pattern, cleanClause)
+            conditions = [value.strip() for value in conditions if value.strip()]
+
+            tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 1)
+            tempTable.print_internal()
+
+        elif(SIMPLE_DOUBLE_WHERE):
+            numChars = len(query_tokens[4])
+            cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
+            pattern = fr"(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)\s(AND|OR)\s(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)"
+            matches = re.match(pattern, cleanClause)
+            conditions = [matches.group(i).strip() for i in range(1, 8)]
+
+            tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 2)
+            tempTable.print_internal()
+            
+        else:
+            databases[table_name].print_internal()
     elif(SELECT_WITH_TABLE_NAMES):
         table_name = query_tokens[3]
         if(',' in query_tokens[1]):

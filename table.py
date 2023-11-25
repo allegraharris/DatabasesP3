@@ -257,11 +257,9 @@ class Table:
                     if column in newColumns and (column == conditions[0]):
                         if(evaluateCondition(value, conditions[1], conditions[2])):
                             first = True
-                            count1+=1
                     elif column in newColumns and (column == conditions[4]):
                         if(evaluateCondition(value, conditions[5], conditions[6])):
                             second = True
-                            count2+=1
 
                         if(conditions[3] == 'AND' and first and second):
                             break
