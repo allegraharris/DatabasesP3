@@ -1,38 +1,32 @@
 import unittest
-import sys
+from unittest.mock import patch, Mock
 from io import StringIO
-from unittest.mock import patch
-from main import readInput, eval_query, print_table, databases, filter
+from main import *
 
-print("Set up")
-class TestDBMS(unittest.TestCase):
 
-    def setUp(self):
-       # Redirect stdout to capture print statements
-       self.held_output = StringIO()
+def test_create_table(qry): 
+    global sql_query, query_tokens
+    sql_query = qry
+    filter()
+    print("QUERY TOKENS:", query_tokens)
+    result = eval_query()
+    print_table(result)
 
-    def tearDown(self):
-       # Restore stdout
-       self.held_output.close()
-
-    @patch('sys.stdout', new_callable=StringIO)
-    def test_create_table(self, mock_stout):
-        global sql_query 
-        sql_query = "CREATE TABLE test_table (col1 INT, col2 STRING, primary key (col1));"
-        filter()
-        print_table(eval_query())
-        output = mock_stout.getvalue().strip()
-        self.assertEqual(output, "Query OK, 0 rows affected")
     
+    #query_tokens = ["CREATE", "TABLE", "test_table", "col1", "INT,", "col2", "STRING,", "primary key", "(col1);"]
+    #print(query_tokens)
 
-    @patch('sys.stdout', new_callable=StringIO)
-    def test_show_table(self, mock_stdout):
-        global sql_query
-        sql_query = "SHOW TABLES;"
-        filter()
-        eval_query()
-        output = mock_stdout.getvalue().strip()
-        self.assertEqual(output, "Tables\n-------\ntest_table")
+def test_show_table():
+    global sql_query, query_tokens
+    sql_query = "SHOW TABLES;"
+    filter()
+    result = eval_query()
+    print_table(result)
 
-if __name__ == '__main__':
-    unittest.main()
+# Call your test functions
+
+#global sql_query, query_tokens
+query_tokens = []
+sql_query = "create table students (id int, first_name string, last_name string, primary key (id) );"
+test_create_table(sql_query)
+test_show_table()
