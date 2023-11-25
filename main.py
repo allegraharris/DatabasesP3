@@ -47,6 +47,9 @@ quitting = False
 PROMPT = "-> "
 PROMPT2 = "> "
 
+SIMPLE_SELECT = False
+SIMPLE_WILDCARD = False
+
 ### Input Parsing ###
 #-----------------------------------------------------------#
 
@@ -192,13 +195,17 @@ def select():
         databases[table_name].print_internal()
     elif(SIMPLE_SELECT):
         table_name = query_tokens[3]
-        columns = query_tokens[1]
 
-        if(',' in columns):
-            print("do this")
+        if(',' in query_tokens[1]):
+            columns = [value.strip() for value in query_tokens[1].split(',')]
         else:
-            tempTable = Table()
-            
+            columns = [query_tokens[1]]
+
+        tempTable = Table()
+        tempTable = databases[table_name].copyColumns(tempTable, columns)
+
+        tempTable.print_internal()
+
 
 
 

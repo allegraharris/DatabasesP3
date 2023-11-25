@@ -178,15 +178,18 @@ class Table:
         print(tb(tuples,headers,tablefmt='outline'))
 
     def copyColumns(self, tempTable, newColumns):
-        primaryFlag = True
-        count = 0
-
-        for key in self.pri_keys:
-            if(key not in newColumns):
-                primaryFlag = False
-            
-        for column in newColumns:
-            if(column in self.pri_keys and primaryFlag and count == 0):
-                tempTable
+        
+        for key, inner_dict in self.indexing.items():
+            if key not in tempTable.indexing:
+                tempTable.indexing[key] = {}
+            for column, value in inner_dict.items():
+                if column in newColumns:
+                    if column not in tempTable.indexing[key]:
+                        tempTable.indexing[key][column] = value
+                    else:
+                        tempTable.indexing[key][column].add(value)
+                    tempTable.size+=1
+        tempTable.columns = list(newColumns)
+                    
 
         return tempTable
