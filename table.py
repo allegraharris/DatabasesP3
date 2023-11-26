@@ -7,11 +7,38 @@ class Table {
 
 databases = {} # global variable database that stores all of the tables
 
+INT_MIN = -2147483647
+
 import re
 from BTrees._OOBTree import OOBTree
 from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 
+def evaluateCondition(value1, operator, value2):
+        try:
+            value2 = int(value2)
+            if operator == '=':
+                return value1 == value2
+            elif operator == '!=':
+                return value1 != value2
+            elif operator == '>':
+                return value1 > value2
+            elif operator == '>=':
+                return value1 >= value2
+            elif operator == '<':
+                return value1 < value2
+            elif operator == '<=':
+                return value1 <= value2
+        except ValueError:
+            value2 = value2.replace("'", "")
+            if operator == '=':
+                return value1 == value2
+            elif operator == '!=':
+                return value1 != value2
+            else:
+                raise Syntax_Error('Syntax Error: can only use = or != on string type')
+                
+        return False
 class Table:
     def __init__(self):
         self.name = ''
@@ -179,4 +206,152 @@ class Table:
                 tuple.append('FOR')
             tuples.append(tuple)
         print(tb(tuples,headers,tablefmt='outline'))
+<<<<<<< HEAD
         print(f"{len(tuples)} rows in set")
+=======
+
+
+    def copyColumns(self, tempTable, newColumns, conditions, single):
+        #arguments:
+        #tempTable = the new empty table to copy data into
+        #newColumns = the columns we are trying to select
+        #conditions = a list of the format ['a', '=', '2', 'and','b', '<', '6']
+            # Will either have size 3 or 7 dependending on whether there are two conditions or not
+        #single = an integer (0,1,2) which specifies how many conditions there are 
+
+        addRow = False
+        first = False
+        second = False
+
+        #If there is no where clause, copy values from relevant columns into new relation
+        if(single == 0):
+            for key, inner_dict in self.indexing.items():
+                for column, value in inner_dict.items():
+                    if key not in tempTable.indexing:
+                        tempTable.indexing[key] = {}
+                    if column in newColumns:
+                        if column not in tempTable.indexing[key]:
+                            tempTable.indexing[key][column] = value
+                        else:
+                            tempTable.indexing[key][column].add(value)
+                        tempTable.size+=1
+            tempTable.columns = list(newColumns)
+        #if only one condition, add all values from relevant columns into new relation that meet the condition
+        elif(single == 1):
+            for key, inner_dict in self.indexing.items():
+                for column, value in inner_dict.items():
+                    if column in newColumns and column == conditions[0]:
+                        if(evaluateCondition(value, conditions[1], conditions[2])):
+
+                            if key not in tempTable.indexing:
+                                tempTable.indexing[key] = {}
+
+                            tempTable.indexing[key][column] = value
+                            tempTable.size+=1
+                            addRow = True
+
+                    if(addRow):
+                        tempTable.indexing[key][column] = value
+
+                addRow = False
+
+            tempTable.columns = list(newColumns)
+        #if two conditions, same idea as above but a bit more fiddly
+        elif(single == 2):
+            for key, inner_dict in self.indexing.items():
+                for column, value in inner_dict.items():
+                    if column in newColumns and (column == conditions[0]):
+                        if(evaluateCondition(value, conditions[1], conditions[2])):
+                            first = True
+                    elif column in newColumns and (column == conditions[4]):
+                        if(evaluateCondition(value, conditions[5], conditions[6])):
+                            second = True
+
+                        if(conditions[3] == 'AND' and first and second):
+                            break
+                        elif(conditions[3] == 'OR' and (first or second)):
+                            break
+
+                if(conditions[3] == 'AND' and first and second):
+                    for column, value in inner_dict.items():
+                        if column in newColumns:
+                            if key not in tempTable.indexing:
+                                tempTable.indexing[key] = {}
+                            tempTable.indexing[key][column] = value
+                            tempTable.size+=1
+                elif(conditions[3] == 'OR' and (first or second)):
+                    for column, value in inner_dict.items():
+                        if column in newColumns:
+                            if key not in tempTable.indexing:
+                                tempTable.indexing[key] = {}
+                            tempTable.indexing[key][column] = value
+                            tempTable.size+=1
+                first = False
+                second = False
+
+            tempTable.columns = list(newColumns)    
+
+        return tempTable
+    
+    def max(self, column, conditions, single):
+        max = INT_MIN
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take max of a string column')
+        
+        if(single == 0):
+            for key, inner_dict in self.indexing.items():
+                if(column in self.pri_keys):
+                    if(len(self.pri_keys) == 1):
+                        value = int(next(iter(key)))
+                    else:
+                        value = inner_dict[column]
+                else:
+                    value = inner_dict[column]
+                if(value > max):
+                    max = value
+        elif(single == 1):
+            for key, inner_dict in self.indexing.items():
+                if(column in self.pri_keys):
+                    if(len(self.pri_keys) == 1):
+                        value = int(next(iter(key)))
+                    else:
+                        value = inner_dict[column]
+                else:
+                    value = inner_dict[column]
+
+                condition_value = int(inner_dict[conditions[0]])
+                if(value > max and evaluateCondition(condition_value, conditions[1], conditions[2])):
+                            max = value
+
+        elif(single == 2):
+            for key, inner_dict in self.indexing.items():
+                if(column in self.pri_keys):
+                    if(len(self.pri_keys) == 1):
+                        value = int(next(iter(key)))
+                    else:
+                        value = inner_dict[column]
+                else:
+                    value = inner_dict[column]
+                
+                condition_value_one = int(inner_dict[conditions[0]])
+                condition_value_two = int(inner_dict[conditions[4]])
+
+                if(conditions[3] == 'AND'):
+                    if(value > max and evaluateCondition(condition_value_one, conditions[1], conditions[2]) and evaluateCondition(condition_value_two, conditions[5], conditions[6])):
+                        max = value
+                elif(conditions[3] == 'OR'):
+                    if(value > max and (evaluateCondition(condition_value_one, conditions[1], conditions[2]) or evaluateCondition(condition_value_two, conditions[5], conditions[6]))):
+                        max = value
+                
+        if(max == INT_MIN):
+            tempTable = Table()
+            return tempTable
+        
+        tempTable = Table()
+        tempTable.columns = ["max(" + str(column) + ")"]
+        tempTable.indexing[0] = {}
+        tempTable.indexing[0]["max(" + str(column) + ")"] = max
+        tempTable.size = 1
+
+        return tempTable
+>>>>>>> main
