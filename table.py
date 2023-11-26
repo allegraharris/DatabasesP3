@@ -55,7 +55,7 @@ class Table:
     ### add column, primary key, or foreign key ###
     ### attribute is the raw input, e.g: net_id INT, PRIMARY KEY (net_id), PRIMARY KEY ()
     def add_attribute(self,attribute):
-        tokens = [token for token in re.split(r'\s+|([a-zA-Z_]+)|(\([^)]+\))',attribute) if token]
+        tokens = [token for token in re.split(r'(\([^)]*\))|\s+',attribute) if token]
         # print(tokens)
         if tokens[0] == 'PRIMARY': # primary key definition
             if len(tokens) != 3 or tokens[1].upper() != 'KEY':
@@ -186,6 +186,7 @@ class Table:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
         print(tb(tuples, headers, tablefmt='outline'))
+        print(f"{self.size} rows in set")
         return
 
     def describe(self):
@@ -218,7 +219,7 @@ class Table:
         second = False
 
         #If there is no where clause, copy values from relevant columns into new relation
-        if(single == 0):
+        if(len(conditions) == 0):
             for key, inner_dict in self.indexing.items():
                 for column, value in inner_dict.items():
                     if key not in tempTable.indexing:
@@ -287,60 +288,26 @@ class Table:
 
         return tempTable
     
-    def max(self, column, conditions, single):
+    def max(self, column):
         max = INT_MIN
-        if(self.column_data[column][0] == 'STRING'):
-            raise Syntax_Error('Cannot take max of a string column')
-        
-        if(single == 0):
-            for key, inner_dict in self.indexing.items():
-                if(column in self.pri_keys):
-                    if(len(self.pri_keys) == 1):
-                        value = int(next(iter(key)))
-                    else:
-                        value = inner_dict[column]
-                else:
-                    value = inner_dict[column]
+        if(column in self.pri_keys):
+            if(len(self.pri_keys) == 1):
+                for key in self.indexing.keys():
+                    value = int(next(iter(key)))
+                    if(value > max):
+                        max = value
+            else: 
+                for key, cols in self.indexing.items():
+                    value = cols[column]
+                    if(value > max):
+                        max = value
+        else:
+            for key, cols in self.indexing.items():
+                value = cols[column]
                 if(value > max):
                     max = value
-        elif(single == 1):
-            for key, inner_dict in self.indexing.items():
-                if(column in self.pri_keys):
-                    if(len(self.pri_keys) == 1):
-                        value = int(next(iter(key)))
-                    else:
-                        value = inner_dict[column]
-                else:
-                    value = inner_dict[column]
-
-                condition_value = int(inner_dict[conditions[0]])
-                if(value > max and evaluateCondition(condition_value, conditions[1], conditions[2])):
-                            max = value
-
-        elif(single == 2):
-            for key, inner_dict in self.indexing.items():
-                if(column in self.pri_keys):
-                    if(len(self.pri_keys) == 1):
-                        value = int(next(iter(key)))
-                    else:
-                        value = inner_dict[column]
-                else:
-                    value = inner_dict[column]
                 
-                condition_value_one = int(inner_dict[conditions[0]])
-                condition_value_two = int(inner_dict[conditions[4]])
 
-                if(conditions[3] == 'AND'):
-                    if(value > max and evaluateCondition(condition_value_one, conditions[1], conditions[2]) and evaluateCondition(condition_value_two, conditions[5], conditions[6])):
-                        max = value
-                elif(conditions[3] == 'OR'):
-                    if(value > max and (evaluateCondition(condition_value_one, conditions[1], conditions[2]) or evaluateCondition(condition_value_two, conditions[5], conditions[6]))):
-                        max = value
-                
-        if(max == INT_MIN):
-            tempTable = Table()
-            return tempTable
-        
         tempTable = Table()
         tempTable.columns = ["max(" + str(column) + ")"]
         tempTable.indexing[0] = {}
