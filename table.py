@@ -186,6 +186,7 @@ class Table:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
         print(tb(tuples, headers, tablefmt='outline'))
+        print(f"{self.size} rows in set")
         return
 
     def describe(self):

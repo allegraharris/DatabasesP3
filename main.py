@@ -150,7 +150,7 @@ def execute(filename):
         with open(filename,'r') as file:
             file_content = file.read().replace('\n',' ')
     except FileNotFoundError:
-        print(f"File {filename} not found")
+        raise FileNotFoundError(f"File {filename} not found")
     sql_query = sqlparse.format(file_content,reindent=False, keyword_case='upper')
     sql_queries = sqlparse.parse(sql_query)
     for stmt in sql_queries:
@@ -283,14 +283,6 @@ def select():
             tempTable.print_internal()
     nullify()
 
-
-
-
-
-
-
-
-
 ### VALIDATE SQL COMMAND ###
 #------------------------------------------------------------------------------#
 
@@ -366,8 +358,9 @@ def validateSelect():
     table_name = ''
     wildcardFlag = False
 
+    print(length)
     #Must have at least basic format of SELECT x FROM table
-    if(length < 4):
+    if(length < 5) or query_tokens[2] != 'FROM':
         raise Syntax_Error("Syntax Error: invalid select")
 
     #Either a join or selecting from many tables
@@ -385,7 +378,7 @@ def validateSelect():
                     AGGREGATE = True
                     validateAggregateFunction()
                 else: 
-                    raise Syntax_Error("Syntax Error: no closing parentheses")
+                    raise Syntax_Error("Syntax Error: no closing parentheses for aggregate function")
             else:
                 select_columns = validateSelectWithTableNames()
                 global SELECT_WITH_TABLE_NAMES
@@ -874,6 +867,8 @@ while quitting == False:
     except Not_Exist as e:
         print(f"{e}")
     except Unsupported_Functionality as e:
+        print(f"{e}")
+    except FileNotFoundError as e:
         print(f"{e}")
 for table in databases.keys():
     databases[table].describe()
