@@ -403,10 +403,123 @@ class Table:
 
         #TO DO Double condition with one constant and one variable value
         elif(single == 2 and constant and constant2 == False):
-            for key, inner_dict in table.indexing.items():
-                for key2, inner_dict2 in self.indexing.items():
-                    if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                        tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+            condition_column1 = conditions[0][1]
+            condition_column1_a = conditions[4][1]
+            condition_column2_a = conditions[6][1]
+
+            #DONE
+            if(conditions[0][0] == table_name and conditions[4][0] == table_name):
+                for key, inner_dict in table.indexing.items():
+                    condition_value1 = int(inner_dict[condition_column1])
+                    condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
+
+                    if(conditions[3] == 'AND' and condition1):
+                        condition_value2 = int(inner_dict[condition_column1_a])
+                        condition_value2_a = int(inner_dict[condition_column2_a])
+                        condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
+
+                        if(condition2):
+                            for key2, inner_dict2 in self.indexing.items():
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+
+                    elif(conditions[3] == 'OR' and condition1):
+                        for key2, inner_dict2 in self.indexing.items():
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+
+                    elif(conditions[3] == 'OR' and condition1 == False):
+                        condition_value2 = int(inner_dict[condition_column1_a])
+                        condition_value2_a = int(inner_dict[condition_column2_a])
+                        condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
+
+                        if(condition2):
+                            for key2, inner_dict2 in self.indexing.items():
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+
+            #TO DO
+            elif(conditions[0][0] == self_name and conditions[4][0] == self_name):
+                for key, inner_dict in table.indexing.items():
+                    for key2, inner_dict2 in self.indexing.items():
+                        condition_value1 = int(inner_dict2[condition_column1])
+                        condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
+
+                        if(conditions[3] == 'AND' and condition1):
+                            condition_value2 = int(inner_dict2[condition_column1_a])
+                            condition_value2_a = int(inner_dict2[condition_column2_a])
+                            condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
+
+                            if(condition2):
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+                    
+                        elif(conditions[3] == 'OR' and condition1):
+                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+                        
+                        elif(conditions[3] == 'OR' and condition1 == False):
+                            condition_value2 = int(inner_dict2[condition_column1_a])
+                            condition_value2_a = int(inner_dict2[condition_column2_a])
+                            condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
+
+                            if(condition2):
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+            
+            #TO DO
+            elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
+                for key, inner_dict in table.indexing.items():
+                    condition_value1 = int(inner_dict[condition_column1])
+                    condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
+
+                    if(conditions[3] == 'AND' and condition1):
+                        for key2, inner_dict2 in self.indexing.items():
+                            condition_value2 = int(inner_dict2[condition_column1_a])
+                            condition_value2_a = int(inner_dict2[condition_column2_a])
+                            condition2 = evaluateCondition(condition_value2, conditions[5], condition_column2_a)
+                            if(condition2):
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+                    elif(conditions[3] == 'OR' and condition1):
+                        for key2, inner_dict2 in self.indexing.items():
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+                    elif(conditions[3] == 'OR' and condition1 == False):
+                        for key2, inner_dict2 in self.indexing.items():
+                            condition_value2 = int(inner_dict2[condition_column1_a])
+                            condition_value2_a = int(inner_dict2[condition_column2_a])
+                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
+                            if(condition2):
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+            
+            #TO DO
+            elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
+                for key, inner_dict in table.indexing.items():
+                    condition_value2 = int(inner_dict[condition_column1_a])
+                    condition_value2_a = int(inner_dict[condition_column2_a])
+                    condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
+
+                    if(conditions[3] == 'AND' and condition2):
+                        for key2, inner_dict2 in self.indexing.items():
+                            condition_value1 = int(inner_dict2[condition_column1])
+                            condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
+                            if(condition1):
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+                    elif(conditions[3] == 'OR' and condition2):
+                        for key2, inner_dict2 in self.indexing.items():
+                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+                    elif(conditions[3] == 'OR' and condition2 == False):
+                        for key2, inner_dict2 in self.indexing.items():
+                            condition_value1 = int(inner_dict2[condition_column1])
+                            condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
+                            if(condition1):
+                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+
         #TO DO Double condition with one variable and one constant value
         elif(single == 2 and constant == False and constant2):
             for key, inner_dict in table.indexing.items():
@@ -455,7 +568,7 @@ class Table:
                                 if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
                                     tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
 
-            #TO DO                        
+            #DONE                       
             elif(conditions[0][0] == self_name and conditions[4][0] == self_name):
                 for key, inner_dict in table.indexing.items():
                     for key2, inner_dict2 in self.indexing.items():
@@ -507,7 +620,7 @@ class Table:
                                 if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
                                     tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
 
-            #TO DO
+            #DONE
             elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
                 for key, inner_dict in table.indexing.items():
                     condition_value2 = int(inner_dict[condition_column1_a])

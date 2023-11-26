@@ -356,10 +356,14 @@ def select():
                 conditions[4] = conditions[4].split('.')
 
                 if('.' in conditions[2] and '.' in conditions[6]):
+                    conditions[2] = conditions[2].split('.')
+                    conditions[6] = conditions[6].split('.')
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
                 elif('.' in conditions[2] and '.' not in conditions[6]):
+                    conditions[2] = conditions[2].split('.')
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, True)
                 elif('.' not in conditions[2] and '.' in conditions[6]):
+                    conditions[6] = conditions[6].split('.')
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, False)
                 elif('.' not in conditions[2] and '.' not in conditions[6]):
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, True)
@@ -412,13 +416,17 @@ def select():
                 conditions[4] = conditions[4].split('.')
 
                 if('.' in conditions[2] and '.' in conditions[6]):
+                    conditions[2] = conditions[2].split('.')
+                    conditions[6] = conditions[6].split('.')
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
                 elif('.' in conditions[2] and '.' not in conditions[6]):
+                    conditions[2] = conditions[2].split('.')
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, True)
                 elif('.' not in conditions[2] and '.' in conditions[6]):
-                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
+                    conditions[6] = conditions[6].split('.')
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, False)
                 elif('.' not in conditions[2] and '.' not in conditions[6]):
-                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, True)
 
             else: 
                 tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 0)
