@@ -11,7 +11,4 @@ insert into test2 (d,e,f) values (7,8,9);
 insert into test2 (d,e,f) values (10,11,12);
 
 
-select * from test2 where d != 1 or e != 5;
-select * from test2 where d > 2 and e > 3;
-select * from test2;
-select * from test2 where d = 10;
+select max(d) from test2 where e = 11 and f = 9;
