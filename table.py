@@ -55,7 +55,7 @@ class Table:
     ### add column, primary key, or foreign key ###
     ### attribute is the raw input, e.g: net_id INT, PRIMARY KEY (net_id), PRIMARY KEY ()
     def add_attribute(self,attribute):
-        tokens = [token for token in re.split(r'\s+|([a-zA-Z_]+)|(\([^)]+\))',attribute) if token]
+        tokens = [token for token in re.split(r'(\([^)]*\))|\s+',attribute) if token]
         # print(tokens)
         if tokens[0] == 'PRIMARY': # primary key definition
             if len(tokens) != 3 or tokens[1].upper() != 'KEY':

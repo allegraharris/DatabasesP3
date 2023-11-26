@@ -323,19 +323,21 @@ def validateTableInput(cols_data):
 def validateInsert(tokens):
     if len(tokens) != 5 or tokens[1] != 'INTO':
         raise Syntax_Error("Syntax Error: INSERT")
-    insert_info = re.split(r' \s*(?![^()]*\))',tokens[2])
-    if len(insert_info) != 2:
+    insert_info = [token for token in re.split(r'(\([^)]*\))|\s+',tokens[2]) if token]
+    # print(insert_info)
+    if len(insert_info) > 2:
         raise Syntax_Error("Syntax Error: INSERT[2]")
     table_name = insert_info[0]
     if table_name not in databases:
         raise Not_Exist(f"Table {table_name} does not exist")
-    columns = insert_info[1][1:len(insert_info)-1].strip()
-    columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
-    # print(columns)
-    if len(columns) != 0:
-        for i in range (0,len(columns)):
-            if columns[i] != databases[table_name].columns[i]:
-                raise Syntax_Error("Syntax Error: INSERT Columns does not match")
+    if len(insert_info) == 2:
+        columns = insert_info[1][1:len(insert_info)-1].strip()
+        columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
+        # print(columns)
+        if len(columns) != 0:
+            for i in range (0,len(columns)):
+                if columns[i] != databases[table_name].columns[i]:
+                    raise Syntax_Error("Syntax Error: INSERT Columns does not match")
     if tokens[3] == 'VALUES':
         raise Syntax_Error("Syntax Error: Empty VALUES, no tuples inserted")
     return table_name
