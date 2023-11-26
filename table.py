@@ -345,7 +345,7 @@ class Table:
 
         return tempTable
     
-    def nestedLoop(self, table, columns, joinConditions, self_name, table_name, single):
+    def nestedLoop(self, table, columns, joinConditions, self_name, table_name, single, conditions, constant, constant2):
         # larger relation is self, smaller relation is table
 
         tempTable = Table() 
@@ -353,10 +353,72 @@ class Table:
         self_join_column = joinConditions[0][1]
         table_join_column = joinConditions[1][1]
 
-        for key, inner_dict in table.indexing.items():
-            for key2, inner_dict2 in self.indexing.items():
-                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+        #No conditions
+        if(single == 0):
+            for key, inner_dict in table.indexing.items():
+                for key2, inner_dict2 in self.indexing.items():
+                    if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                        tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+
+        #Single condition with a constant value
+        elif(single == 1 and constant):
+            condition_column = conditions[0][1]
+
+            #If condition table is the outer relation
+            if(conditions[0][0] == table_name):
+                for key, inner_dict in table.indexing.items():
+                    condition_value = int(inner_dict[condition_column])
+                    if(evaluateCondition(condition_value, conditions[1], conditions[2])):
+                        for key2, inner_dict2 in self.indexing.items():
+                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                                tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+            #If condition table is the inner relation
+            else:
+                for key, inner_dict in table.indexing.items():
+                    for key2, inner_dict2 in self.indexing.items():
+                        condition_value = int(inner_dict2[condition_column])
+                        if(inner_dict[table_join_column] == inner_dict2[self_join_column] and evaluateCondition(condition_value, conditions[1], conditions[2])):
+                            tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+
+        #Single condition with a variable value
+        elif(single == 1 and constant == False):
+            condition_column1 = conditions[0][1]
+            condition_column2 = conditions[2][1]
+
+            #If left table is the outer relation
+            if(conditions[0][0] == table_name):
+                for key, inner_dict in table.indexing.items():
+                    condition_value1 = int(inner_dict[condition_column1])
+                    for key2, inner_dict2 in self.indexing.items():
+                        condition_value2 = int(inner_dict2[condition_column2])
+                        if(inner_dict[table_join_column] == inner_dict2[self_join_column] and evaluateCondition(condition_value1, conditions[1], condition_value2)):
+                            tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+            else:
+                for key, inner_dict in table.indexing.items():
+                    condition_value2 = int(inner_dict[condition_column2])
+                    for key2, inner_dict2 in self.indexing.items():
+                        condition_value1 = int(inner_dict2[condition_column1])
+                        if(inner_dict[table_join_column] == inner_dict2[self_join_column] and evaluateCondition(condition_value1, conditions[1], condition_value2)):
+                            tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+        #Double condition with one constant and one variable value
+        elif(single == 2 and constant and constant2 == False):
+            for key, inner_dict in table.indexing.items():
+                for key2, inner_dict2 in self.indexing.items():
+                    if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                        tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+        #Double condition with one variable and one constant value
+        elif(single == 2 and constant == False and constant2):
+            for key, inner_dict in table.indexing.items():
+                for key2, inner_dict2 in self.indexing.items():
+                    if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                        tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+        #Double conditions with constant values
+        elif(single == 2 and constant == False and constant2 == False):
+            for key, inner_dict in table.indexing.items():
+                for key2, inner_dict2 in self.indexing.items():
+                    if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                        tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
+
         return tempTable
 
     def mergeScan(self, table2, columns, joinConditions):
