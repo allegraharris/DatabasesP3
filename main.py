@@ -345,7 +345,24 @@ def select():
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1, conditions, True, False)
 
             elif(DOUBLE_WHERE):
-                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions)
+                numChars = len(query_tokens[8])
+                cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
+                
+                pattern = fr"(\w+\.\w+)\s+({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s+(\S+)"
+                conditions = re.split(pattern, cleanClause)         
+                conditions = [value.strip() for value in conditions if value.strip()]
+
+                conditions[0] = conditions[0].split('.')
+                conditions[4] = conditions[4].split('.')
+
+                if('.' in conditions[2] and '.' in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
+                elif('.' in conditions[2] and '.' not in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, True)
+                elif('.' not in conditions[2] and '.' in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, False)
+                elif('.' not in conditions[2] and '.' not in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, True)
             else:
                 tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 0, conditions, False, False)
 
@@ -384,7 +401,25 @@ def select():
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1, conditions, True, False)
 
             elif(DOUBLE_WHERE):
-                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 2)
+                numChars = len(query_tokens[8])
+                cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
+
+                pattern = fr"(\w+\.\w+)\s+({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s+(\S+)"
+                conditions = re.split(pattern, cleanClause)         
+                conditions = [value.strip() for value in conditions if value.strip()]
+
+                conditions[0] = conditions[0].split('.')
+                conditions[4] = conditions[4].split('.')
+
+                if('.' in conditions[2] and '.' in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
+                elif('.' in conditions[2] and '.' not in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, True)
+                elif('.' not in conditions[2] and '.' in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
+                elif('.' not in conditions[2] and '.' not in conditions[6]):
+                    tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, False, False)
+
             else: 
                 tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 0)
 
