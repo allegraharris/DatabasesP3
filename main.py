@@ -295,6 +295,7 @@ def select():
         leftTable = query_tokens[3]
         rightTable = query_tokens[5]
         joinConditions = query_tokens[7].split('=')
+        columns = [[],[]]
 
         left = joinConditions[0].strip().split('.')
         right = joinConditions[1].strip().split('.')
@@ -317,11 +318,11 @@ def select():
             if(SIMPLE_WILDCARD):
                 columns = [databases[left[0]].columns, databases[right[0]].columns]
             else:
-                for table, columns in table_column_dict.items():
-                    if(table == databases[left[0]]):
-                        columns[0] = databases[left[0]].columns
+                for table, cols in table_column_dict.items():
+                    if(table == left[0]):
+                        columns[0] = cols
                     else:
-                        columns[1] = databases[right[0]].columns
+                        columns[1] = cols
             
             joinConditions = [left, right]
 
@@ -333,11 +334,11 @@ def select():
             if(SIMPLE_WILDCARD):
                 columns = [databases[right[0]].columns, databases[left[0]].columns]
             else:
-                for table, columns in table_column_dict.items():
-                    if(table == databases[right[0]]):
-                        columns[0] = databases[right[0]].columns
+                for table, cols in table_column_dict.items():
+                    if(table == right[0]):
+                        columns[0] = cols
                     else:
-                        columns[1] = databases[left[0]].columns
+                        columns[1] = cols
             
             joinConditions = [right, left]
 
@@ -347,11 +348,11 @@ def select():
         else:
 
             if(SIMPLE_WILDCARD == False):
-                for table, columns in table_column_dict.items():
-                    if(table == databases[left[0]]):
-                        columns[0] = databases[left[0]].columns
+                for table, cols in table_column_dict.items():
+                    if(table == left[0]):
+                        columns[0] = cols
                     else:
-                        columns[1] = databases[right[0]].columns
+                        columns[1] = cols
 
             joinConditions = [left, right]
 
@@ -589,6 +590,7 @@ def validateJoin():
 
     for pair in joinPairs:
         table, column = pair.strip().split('.')
+        print("Table: " + table + " Column: " + column)
         
         if(table not in joining_tables):
             raise Syntax_Error('Syntax Error: Invalid join syntax')
@@ -597,9 +599,9 @@ def validateJoin():
             raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
         
         tabs.append(table)
-        tabs.append(column)
+        cols.append(column)
 
-    if(databases[tabs[0]].column_data[cols[0]] != databases[tabs[1]].column_data[cols[1]]):
+    if(databases[tabs[0]].column_data[cols[0]][0] != databases[tabs[1]].column_data[cols[1]][0]):
         raise Syntax_Error('Syntax Error: Cannot join on columns of different types')
     
     #checking if it also has a where clause 

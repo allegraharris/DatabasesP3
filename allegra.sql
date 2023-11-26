@@ -24,6 +24,6 @@ select * from test2;
 
 select * from test3;
 
-select * from test2 join test3 on test2.d = test3.a;
+select test2.d, test3.a, test3.b from test2 join test3 on test2.d = test3.a;
 
 
