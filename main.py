@@ -52,9 +52,11 @@ SIMPLE_SELECT = False
 SIMPLE_WILDCARD = False
 SELECT_WITH_TABLE_NAMES = False
 AGGREGATE = False
-SINGLE_WHERE = False
-DOUBLE_WHERE = False
-JOIN = False
+WHERE = False
+SIMPLE_SINGLE_WHERE = False
+SIMPLE_DOUBLE_WHERE = False
+
+FLAGS = [SIMPLE_SELECT, SIMPLE_WILDCARD, SELECT_WITH_TABLE_NAMES, AGGREGATE, WHERE, SIMPLE_SINGLE_WHERE, SIMPLE_DOUBLE_WHERE]
 
 ### Input Parsing ###
 #-----------------------------------------------------------#
@@ -119,13 +121,11 @@ def show_table():
         print("<Empty Set>")
         return
     print(tb(tables,headers,tablefmt='outline'))
-    print(f"{len(tables)} rows in set")
     return
 
 def create_table():
     table = Table()
     table = parse_columns(table)
-    table.name = query_tokens[2]
     databases[query_tokens[2]] = table
     print("Query OK, 0 rows affected")
     return
@@ -150,22 +150,16 @@ def execute(filename):
         with open(filename,'r') as file:
             file_content = file.read().replace('\n',' ')
     except FileNotFoundError:
-        raise FileNotFoundError(f"File {filename} not found")
-    start_time = time.time()
-    statements = sqlparse.split(file_content)
-    # print(statements)
-    end_time = time.time()
-    print(f"Parsing Time: {end_time-start_time:.3f}s")
-    for statement in statements:
+        print(f"File {filename} not found")
+    sql_query = sqlparse.format(file_content,reindent=False, keyword_case='upper')
+    sql_queries = sqlparse.parse(sql_query)
+    for stmt in sql_queries:
+        query_tokens = []
+        for token in stmt.tokens:
+            if token.value.strip():
+                query_tokens.append(token.value)
         start_time = time.time()
-        sql_query = sqlparse.format(statement,reindent=False,keyword_case='upper')
-        sql_query = sqlparse.parse(sql_query)
-        for stmt in sql_query:
-            query_tokens = []
-            for token in stmt.tokens:
-                if token.value.strip():
-                    query_tokens.append(token.value)
-            eval_query()
+        eval_query()
         end_time = time.time()
         print(f"Time: {end_time-start_time:.3f}s")
         print()
@@ -212,7 +206,7 @@ def select():
         else:
             columns = [query_tokens[1]]
 
-        if(SINGLE_WHERE):
+        if(SIMPLE_SINGLE_WHERE):
             numChars = len(query_tokens[4])
             cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
             pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
@@ -221,7 +215,7 @@ def select():
 
             tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 1)
 
-        elif(DOUBLE_WHERE):
+        elif(SIMPLE_DOUBLE_WHERE):
             numChars = len(query_tokens[4])
             cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
             pattern = fr"(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)\s(AND|OR)\s(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)"
@@ -234,11 +228,11 @@ def select():
             tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
             
         tempTable.print_internal()
-    elif(SIMPLE_WILDCARD and JOIN == False):
+    elif(SIMPLE_WILDCARD):
         table_name = query_tokens[3]
         columns = databases[table_name].columns
 
-        if(SINGLE_WHERE):
+        if(SIMPLE_SINGLE_WHERE):
             numChars = len(query_tokens[4])
             cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
             pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
@@ -248,7 +242,7 @@ def select():
             tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 1)
             tempTable.print_internal()
 
-        elif(DOUBLE_WHERE):
+        elif(SIMPLE_DOUBLE_WHERE):
             numChars = len(query_tokens[4])
             cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
             pattern = fr"(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)\s(AND|OR)\s(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)"
@@ -257,11 +251,10 @@ def select():
 
             tempTable = databases[table_name].copyColumns(tempTable, columns, conditions, 2)
             tempTable.print_internal()
-
+            
         else:
             databases[table_name].print_internal()
     elif(SELECT_WITH_TABLE_NAMES):
-        ### this feels dumb so might just remove it - will decide tomorrow ###
         table_name = query_tokens[3]
         if(',' in query_tokens[1]):
             columns = [column.split('.')[1].strip() for column in query_tokens[1].split(',')]
@@ -271,36 +264,14 @@ def select():
         tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
         tempTable.print_internal()
     elif(AGGREGATE):
-        table_name = query_tokens[3]
-        pattern = r'^max\(([^)]+)\)$'
-        match = re.match(pattern, query_tokens[1].strip())
-
-        if('.' in match.group(1)):
-            column_name = match.group(1).strip().split('.')[1]
-        else:
-            column_name = match.group(1)
-
-        if(SINGLE_WHERE):
-            numChars = len(query_tokens[4])
-            cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
-            pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
-            conditions = re.split(pattern, cleanClause)
-            conditions = [value.strip() for value in conditions if value.strip()]
-
-            tempTable = databases[table_name].max(column_name, conditions, 1)
-
-        elif(DOUBLE_WHERE):
-            numChars = len(query_tokens[4])
-            cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
-            pattern = fr"(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)\s(AND|OR)\s(\w+)\s({'|'.join(map(re.escape, LOGICAL_OPERATORS))})\s(\S+)"
-            matches = re.match(pattern, cleanClause)
-            conditions = [matches.group(i).strip() for i in range(1, 8)]
-
-            tempTable = databases[table_name].max(column_name, conditions, 2)
-
+        if(SIMPLE_SINGLE_WHERE):
+            print('DO SOMETHING HERE')
+        elif(SIMPLE_DOUBLE_WHERE):
+            print('DO SOMETHING HERE')
         else: 
             table_name = query_tokens[3]
             pattern = r'^max\(([^)]+)\)$'
+
             match = re.match(pattern, query_tokens[1].strip())
 
             if('.' in match.group(1)):
@@ -308,24 +279,16 @@ def select():
             else:
                 column_name = match.group(1)
 
-            tempTable = databases[table_name].max(column_name, [], 0)
-        tempTable.print_internal()
-    elif(JOIN):
-        if(SIMPLE_WILDCARD):
-            print('columns = [columns from the two tables]')
-        else:
-            print('columns are specified')
-            
-        if(SINGLE_WHERE):
-            print('TO DO')
-        
-        elif(DOUBLE_WHERE):
-            print('TO DO')
-
-        else:
-            #just a regular join with no where
-            print('TO DO')
+            tempTable = databases[table_name].max(column_name)
+            tempTable.print_internal()
     nullify()
+
+
+
+
+
+
+
 
 
 ### VALIDATE SQL COMMAND ###
@@ -360,19 +323,19 @@ def validateTableInput(cols_data):
 def validateInsert(tokens):
     if len(tokens) != 5 or tokens[1] != 'INTO':
         raise Syntax_Error("Syntax Error: INSERT")
-    insert_info = [token for token in re.split(r'\s(?![^()]*\))',tokens[2]) if token]
-    if len(insert_info) > 2:
+    insert_info = re.split(r' \s*(?![^()]*\))',tokens[2])
+    if len(insert_info) != 2:
         raise Syntax_Error("Syntax Error: INSERT[2]")
     table_name = insert_info[0]
     if table_name not in databases:
         raise Not_Exist(f"Table {table_name} does not exist")
-    if len(insert_info) == 2:
-        columns = insert_info[1][1:len(insert_info)-1].strip()
-        columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
-        if len(columns) != 0:
-            for i in range (0,len(columns)):
-                if columns[i] != databases[table_name].columns[i]:
-                    raise Syntax_Error("Syntax Error: INSERT Columns does not match")
+    columns = insert_info[1][1:len(insert_info)-1].strip()
+    columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
+    # print(columns)
+    if len(columns) != 0:
+        for i in range (0,len(columns)):
+            if columns[i] != databases[table_name].columns[i]:
+                raise Syntax_Error("Syntax Error: INSERT Columns does not match")
     if tokens[3] == 'VALUES':
         raise Syntax_Error("Syntax Error: Empty VALUES, no tuples inserted")
     return table_name
@@ -409,11 +372,12 @@ def validateSelect():
     if('.' in query_tokens[1]):
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
-                global JOIN
-                JOIN = True
                 return validateJoin()
             elif(',' in query_tokens[3]):
-                raise Unsupported_Functionality('Unsupported Functionality: cannot select from multiple tables if not in a join')
+                ### MIGHT GET RID OF THIS ###
+                global MULTI_SELECT
+                MULTI_SELECT = True
+                return validateMultiSelect()
             elif('(' in query_tokens[1]):
                 if(')' in query_tokens[1]):
                     AGGREGATE = True
@@ -435,13 +399,10 @@ def validateSelect():
 
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
-                global SIMPLE_WILDCARD
-                global JOIN
-                SIMPLE_WILDCARD = True
-                JOIN = True
                 return validateWildcardJoin()
         if(',' in table_name):
-            raise Unsupported_Functionality('Unsupported Functionality: cannot select from multiple tables if not in a join')
+            ### MIGHT GET RID OF THIS ###
+            return validateMultiSelectWildcard()
         if(table_name not in databases):
             raise Not_Exist("Table does not exist")
         #validate all columns exist in the table
@@ -654,6 +615,66 @@ def validateSelectWithTableNames():
 
     return select_columns
 
+def validateMultiSelect():
+    table_column_dict = {}
+    pairs = query_tokens[1].split(',')
+
+    for pair in pairs:
+        try: 
+            table_name, column_name = pair.strip().split('.')
+        except ValueError: 
+            raise Unsupported_Functionality('Unsupported Functionality: must specify table names for all attributes if doing it for one')
+        if table_name in table_column_dict:
+            table_column_dict[table_name].append(column_name)
+        else:
+            table_column_dict[table_name] = [column_name]
+    
+    for table in table_column_dict: 
+        if(table not in databases):
+            raise Not_Exist('Table does not exist')
+        for column in table_column_dict[table]:
+            if(column not in databases[table].column_data):
+                raise Syntax_Error("Syntax Error: Column " + column + " does not exist")
+    
+    if(query_tokens[2] != 'FROM'):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+            
+    from_tables = [value.strip() for value in query_tokens[3].split(',')]
+
+    for table in from_tables:
+        if(table not in databases):
+            raise Not_Exist('Table does not exist')
+
+    for table in table_column_dict:
+        if(table not in from_tables):
+            raise Syntax_Error('Syntax Error: cannot select from an unspecified table')
+    
+    if(len(query_tokens) >= 5):
+        if(query_tokens[4].startswith('WHERE')):
+            validateWhere(from_tables, ' ', query_tokens[4], True) #this isn't a join but looks the same to the where clause parser
+        elif(query_tokens[4] != ';'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[4])
+
+    return True 
+        
+def validateMultiSelectWildcard():
+    if(query_tokens[2] != 'FROM'):
+        raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+    
+    from_tables = [value.strip() for value in query_tokens[3].split(',')]
+
+    for table in from_tables: 
+        if(table not in databases):
+            raise Not_Exist('Table does not exist')
+        
+    if(len(query_tokens) >= 5):
+        if(query_tokens[4].startswith('WHERE')):
+            validateWhere(from_tables, ' ', query_tokens[4], True) #this isn't a join but looks the same to the where clause parser
+        elif(query_tokens[4] != ';'):
+            raise Syntax_Error('Syntax Error: ' + query_tokens[4])
+        
+    return True
+
 def validateWhere(joining_tables, table_name, where_clause, join):
 
     numChars = len(where_clause)
@@ -674,11 +695,11 @@ def validateWhere(joining_tables, table_name, where_clause, join):
     if(numConditions > 1 or numOperators > 2):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
     if(numOperators == 1 and join == False):
-        global SINGLE_WHERE
-        SINGLE_WHERE = True
+        global SIMPLE_SINGLE_WHERE
+        SIMPLE_SINGLE_WHERE = True
     elif(numOperators == 2 and join == False):
-        global DOUBLE_WHERE
-        DOUBLE_WHERE = True
+        global SIMPLE_DOUBLE_WHERE
+        SIMPLE_DOUBLE_WHERE = True
     
     if(join):
         #isolating column names using regex
@@ -761,41 +782,84 @@ def validateAggregateFunction():
 ### END OF SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
 
-### HELPER FUNCTIONS ###
-#------------------------------------------------------------------------------#
+#Helper
+
 
 def nullify():
     global SIMPLE_SELECT
     global SIMPLE_WILDCARD
     global SELECT_WITH_TABLE_NAMES
     global AGGREGATE
-    global SINGLE_WHERE
-    global DOUBLE_WHERE
-    global JOIN
+    global WHERE
+    global SIMPLE_SINGLE_WHERE
+    global SIMPLE_DOUBLE_WHERE
 
     SIMPLE_SELECT = False
     SIMPLE_WILDCARD = False 
     SELECT_WITH_TABLE_NAMES = False
     AGGREGATE = False
-    SINGLE_WHERE = False 
-    DOUBLE_WHERE = False
-    JOIN = False
+    WHERE = False 
+    SIMPLE_SINGLE_WHERE = False 
+    SIMPLE_DOUBLE_WHERE = False
+    
 
-### END OF HELPER FUNCTIONS ###
+
+### OPTIMISATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
+'''
+def createQueryTree():
+    OptimiserTree = Tree()
+    i = 0
+    while i < len(query_tokens):
+        if(query_tokens[i] == 'SELECT'):
+            #If it is a wildcard select 
+            if(query_tokens[i+1] == '*'):
+                columns_list = ''
+                j = i+1
+                while(query_tokens[j] != 'FROM'):
+                    j+=1
+                    table_name = query_tokens[j+1]
+                    wildcard_columns = databases[table_name][0].keys #need to change internal structure but this will represent column names
+                    k = 0
+                    while(k < len(wildcard_columns)):
+                        columns_list += wildcard_columns[k]
+                        if(k != len(wildcard_columns) - 1):
+                            columns_list += ', '
+                        k+=1
+                OptimiserTree.create_node('PROJECT', str(columns_list)) # root node (pre-optimisations)
+            else: 
+                OptimiserTree.create_node('PROJECT', str(query_tokens[i+1])) # root node (pre-optimisations)
+            i+=1
+        elif(query_tokens[i] == 'FROM'):
+            OptimiserTree.create_node('TABLE NAME', query_tokens[i+1], parent='PROJECT')
+        elif(query_tokens[i].startswith('WHERE')):
+            if('AND' in query_tokens[i]):
+                split_where = query_tokens[i].split('AND')
+            elif('OR' in query_tokens[i]):
+                split_where = query_tokens[i].split('OR')
+            OptimiserTree.create_node('SELECT(' )
+        return OptimiserTree
 
-### MAIN ###
+def optimiseTree():
+    print("optimise tree")
+'''
+
+### END OF OPTIMISATION FUNCTIONS ###
+#------------------------------------------------------------------------------#
 
 while quitting == False:
     try:
         readInput()
-        start_time = time.time()
         filter()
+        # print(sql_query)
+        # print(query_tokens)
         if query_tokens[0] == "quit":
             break
+        start_time = time.time()
         eval_query()
         end_time = time.time()
         print(f"Time: {end_time-start_time:.3f}s")
+        # print(databases)
     # throw errors
     except Syntax_Error as e:
         print(f"{e}")
@@ -809,14 +873,7 @@ while quitting == False:
         print(f"{e}")
     except Unsupported_Functionality as e:
         print(f"{e}")
-    except FileNotFoundError as e:
-        print(f"{e}")
-# for table in databases.keys():
-#     databases[table].describe()
-#     databases[table].print_internal()
 for table in databases.keys():
     databases[table].describe()
     databases[table].print_internal()
-
-### END OF MAIN ###
     
