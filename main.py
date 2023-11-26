@@ -50,7 +50,6 @@ PROMPT2 = "> "
 
 SIMPLE_SELECT = False
 SIMPLE_WILDCARD = False
-SELECT_WITH_TABLE_NAMES = False
 AGGREGATE = False
 SINGLE_WHERE = False
 DOUBLE_WHERE = False
@@ -252,16 +251,6 @@ def select():
 
         else:
             databases[table_name].print_internal()
-    elif(SELECT_WITH_TABLE_NAMES):
-        ### this feels dumb so might just remove it - will decide tomorrow ###
-        table_name = query_tokens[3]
-        if(',' in query_tokens[1]):
-            columns = [column.split('.')[1].strip() for column in query_tokens[1].split(',')]
-        else:
-            columns = [query_tokens[1].split('.')[1]]
-
-        tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
-        tempTable.print_internal()
     elif(AGGREGATE):
         table_name = query_tokens[3]
         pattern = r'^max\(([^)]+)\)$'
@@ -303,6 +292,17 @@ def select():
             tempTable = databases[table_name].max(column_name, [], 0)
         tempTable.print_internal()
     elif(JOIN):
+        leftTable = query_tokens[3]
+        rightTable = query_tokens[5]
+        joinConditions = query_tokens[7].split('=')
+
+        left = joinConditions[0].strip().split('.')
+        right = joinConditions[1].strip().split('.')
+
+        #if(databases[left[0]].size )
+
+        
+
         if(SIMPLE_WILDCARD):
             print('columns = [columns from the two tables]')
         else:
@@ -394,7 +394,7 @@ def validateSelect():
     wildcardFlag = False
 
     #Must have at least basic format of SELECT x FROM table
-    if(length < 4):
+    if(length < 4 or query_tokens[2] != 'FROM'):
         raise Syntax_Error("Syntax Error: invalid select")
 
     #Either a join or selecting from many tables
@@ -413,17 +413,12 @@ def validateSelect():
                 else: 
                     raise Syntax_Error("Syntax Error: no closing parentheses")
             else:
-                select_columns = validateSelectWithTableNames()
-                global SELECT_WITH_TABLE_NAMES
-                SELECT_WITH_TABLE_NAMES = True
+                raise Unsupported_Functionality('Unsupported Functionality: cannot select table_name.column_name if not in a join')
                     
     #wildcard select        
     elif(query_tokens[1] == '*'):
         table_name = query_tokens[3]
         #selecting wildcard from multiple tables
-
-        if(query_tokens[2] != 'FROM'):
-            raise Syntax_Error('Syntax Error: ' + query_tokens[2])
 
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
@@ -450,9 +445,6 @@ def validateSelect():
         global SIMPLE_SELECT
         SIMPLE_SELECT = True 
         select_columns = [item.strip() for item in query_tokens[1].split(',')]
-    
-    if(query_tokens[2] != 'FROM'):
-        raise Syntax_Error("Syntax Error: must include FROM")
     
     #if the select doesn't follow format table_name.column_name but is selecting from multiple tables
     if(',' in query_tokens[3]):
@@ -538,14 +530,23 @@ def validateJoin():
     #verifying that tables and their columns that we're joining on are valid
     joinPairs = query_tokens[7].strip().split('=')
 
+    tabs = []
+    cols = []
+
     for pair in joinPairs:
         table, column = pair.strip().split('.')
-
+        
         if(table not in joining_tables):
             raise Syntax_Error('Syntax Error: Invalid join syntax')
         
         if(column not in databases[table].column_data):
             raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
+        
+        tabs.append(table)
+        tabs.append(column)
+
+    if(databases[tabs[0]].column_data[cols[0]] != databases[tabs[1]].column_data[cols[1]]):
+        raise Syntax_Error('Syntax Error: Cannot join on columns of different types')
     
     #checking if it also has a where clause 
     if(len(query_tokens) > 8):
@@ -610,39 +611,6 @@ def validateWildcardJoin():
             raise Syntax_Error('Syntax Error: ' + query_tokens[8])
         
     return True
-
-def validateSelectWithTableNames():
-    table_column_dict = {}
-    pairs = query_tokens[1].split(',')
-    select_columns = []
-
-    for pair in pairs:
-        try: 
-            table_name, column_name = pair.strip().split('.')
-        except ValueError: 
-            raise Unsupported_Functionality('Unsupported Functionality: must specify table names for all attributes if doing it for one')
-        if table_name in table_column_dict:
-            table_column_dict[table_name].append(column_name)
-        else:
-            table_column_dict[table_name] = [column_name]
-
-    if(len(table_column_dict) > 1):
-        raise Syntax_Error("Syntax Error: cannot select from a table that hasn't been specified")
-    else:
-        table_nm = str(next(iter(table_column_dict.keys())))
-
-        if(table_nm not in databases):
-            raise Not_Exist('Table does not exist')
-        
-        if(table_nm != query_tokens[3]):
-            raise Syntax_Error("Syntax Error: cannot select from a table that hasn't been specified")
-        
-        for column in table_column_dict[table_nm]:
-            if(column not in databases[table_nm].column_data):
-                raise Syntax_Error("Syntax Error: Column " + column + " does not exist")
-            select_columns.append(column)
-
-    return select_columns
 
 def validateWhere(joining_tables, table_name, where_clause, join):
 
@@ -757,7 +725,6 @@ def validateAggregateFunction():
 def nullify():
     global SIMPLE_SELECT
     global SIMPLE_WILDCARD
-    global SELECT_WITH_TABLE_NAMES
     global AGGREGATE
     global SINGLE_WHERE
     global DOUBLE_WHERE
@@ -765,7 +732,6 @@ def nullify():
 
     SIMPLE_SELECT = False
     SIMPLE_WILDCARD = False 
-    SELECT_WITH_TABLE_NAMES = False
     AGGREGATE = False
     SINGLE_WHERE = False 
     DOUBLE_WHERE = False

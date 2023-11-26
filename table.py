@@ -243,20 +243,35 @@ class Table:
             for key, inner_dict in self.indexing.items():
                 value1 = inner_dict[conditions[0]]
                 value2 = inner_dict[conditions[4]]
-                if(conditions[3] == 'AND' and evaluateCondition(value1, conditions[1], conditions[2]) and evaluateCondition(value2, conditions[5], conditions[6])):
+                condition1 = evaluateCondition(value1, conditions[1], conditions[2])
+
+                if(conditions[3] == 'AND' and condition1):
+                    condition2 = evaluateCondition(value2, conditions[5], conditions[6])
+                    if(condition2):
+                        for column, value in inner_dict.items():
+                            if column in newColumns:
+                                if key not in tempTable.indexing:
+                                    tempTable.indexing[key] = {}
+                                tempTable.indexing[key][column] = value
+                                tempTable.size+=1
+                
+                elif(conditions[3] == 'OR' and condition1 == True):
                     for column, value in inner_dict.items():
                         if column in newColumns:
                             if key not in tempTable.indexing:
                                 tempTable.indexing[key] = {}
                             tempTable.indexing[key][column] = value
                             tempTable.size+=1
-                elif(conditions[3] == 'OR' and (evaluateCondition(value1, conditions[1], conditions[2]) or evaluateCondition(value2, conditions[5], conditions[6]))):
-                    for column, value in inner_dict.items():
-                        if column in newColumns:
-                            if key not in tempTable.indexing:
-                                tempTable.indexing[key] = {}
-                            tempTable.indexing[key][column] = value
-                            tempTable.size+=1
+
+                elif(conditions[3] == 'OR' and condition1 == False): #this could be combined with the first if but would create confusing logic so is being kept separate
+                    condition2 = evaluateCondition(value2, conditions[5], conditions[6])
+                    if(condition2):
+                        for column, value in inner_dict.items():
+                            if column in newColumns:
+                                if key not in tempTable.indexing:
+                                    tempTable.indexing[key] = {}
+                                tempTable.indexing[key][column] = value
+                                tempTable.size+=1
 
             tempTable.columns = list(newColumns)    
 
@@ -304,13 +319,19 @@ class Table:
                 
                 condition_value_one = int(inner_dict[conditions[0]])
                 condition_value_two = int(inner_dict[conditions[4]])
+                condition1 = evaluateCondition(condition_value_one, conditions[1], conditions[2])
 
-                if(conditions[3] == 'AND'):
-                    if(value > max and evaluateCondition(condition_value_one, conditions[1], conditions[2]) and evaluateCondition(condition_value_two, conditions[5], conditions[6])):
+                if(value > max):
+                    if(conditions[3] == 'AND' and condition1):
+                        condition2 = evaluateCondition(condition_value_two, conditions[5], conditions[6])
+                        if(condition2):
+                            max = value
+                    elif(conditions[3] == 'OR' and condition1):
                         max = value
-                elif(conditions[3] == 'OR'):
-                    if(value > max and (evaluateCondition(condition_value_one, conditions[1], conditions[2]) or evaluateCondition(condition_value_two, conditions[5], conditions[6]))):
-                        max = value
+                    elif(conditions[3] == 'OR' and condition1 == False):
+                        condition2 = evaluateCondition(condition_value_two, conditions[5], conditions[6])
+                        if(condition2):
+                            max = value
                 
         if(max == INT_MIN):
             tempTable = Table()
