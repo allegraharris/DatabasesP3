@@ -8,6 +8,7 @@ class Table {
 databases = {} # global variable database that stores all of the tables
 
 INT_MIN = -2147483647
+JOIN_KEY = 0
 
 import re
 from BTrees._OOBTree import OOBTree
@@ -355,35 +356,37 @@ class Table:
         for key, inner_dict in table.indexing.items():
             for key2, inner_dict2 in self.indexing.items():
                 if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                    tempTable.addRow(inner_dict, inner_dict2, columns, key, self_name, table_name)
+                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
         return tempTable
 
     def mergeScan(self, table2, columns, joinConditions):
         print('do something')
 
-    def addRow(self, inner_dict, inner_dict2, columns, key, self_name, table_name):
+    def addRow(self, inner_dict, inner_dict2, columns, self_name, table_name):
         #columns[0] = self.columns, columns[1] = table.columns
         #inner_dict is table, inner_dict2 is self
-        #key is table
 
         join_columns = []
+        global JOIN_KEY
 
         for column, value in inner_dict.items():
             if(column in columns[1]):
-                if(key not in self.indexing):
-                    self.indexing[key] = {}
-                column_name = str(table_name) + '.' + str(column)
-                self.indexing[key][column_name] = value
+                if(JOIN_KEY not in self.indexing):
+                    self.indexing[JOIN_KEY] = {}
+                column_name = (str(table_name) + '.' + str(column))
+                self.indexing[JOIN_KEY][column_name] = value
                 self.size+=1
                 join_columns.append(column_name)
         
         for column, value in inner_dict2.items():
             if(column in columns[0]):
-                if(key not in self.indexing):
-                    self.indexing[key] = {}
-                column_name = str(self_name) + '.' + str(column)
-                self.indexing[key][column_name] = value
+                if(JOIN_KEY not in self.indexing):
+                    self.indexing[JOIN_KEY] = {}
+                column_name = (str(self_name) + '.' + str(column))
+                self.indexing[JOIN_KEY][column_name] = value
                 self.size+=1
                 join_columns.append(column_name)
+
+        JOIN_KEY += 1
 
         self.columns = join_columns
