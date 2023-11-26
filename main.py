@@ -809,17 +809,14 @@ while quitting == False:
         print(f"{e}")
     except Unsupported_Functionality as e:
         print(f"{e}")
-<<<<<<< HEAD
     except FileNotFoundError as e:
         print(f"{e}")
 # for table in databases.keys():
 #     databases[table].describe()
 #     databases[table].print_internal()
-=======
 for table in databases.keys():
     databases[table].describe()
     databases[table].print_internal()
 
 ### END OF MAIN ###
->>>>>>> main
     

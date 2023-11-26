@@ -206,9 +206,7 @@ class Table:
                 tuple.append('FOR')
             tuples.append(tuple)
         print(tb(tuples,headers,tablefmt='outline'))
-<<<<<<< HEAD
         print(f"{len(tuples)} rows in set")
-=======
 
 
     def copyColumns(self, tempTable, newColumns, conditions, single):
@@ -354,4 +352,3 @@ class Table:
         tempTable.size = 1
 
         return tempTable
->>>>>>> main
