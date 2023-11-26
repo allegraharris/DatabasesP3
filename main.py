@@ -226,7 +226,7 @@ def select():
             tempTable = databases[table_name].copyColumns(tempTable, columns, [], 0)
             
         tempTable.print_internal()
-    elif(SIMPLE_WILDCARD):
+    elif(SIMPLE_WILDCARD and JOIN == False):
         table_name = query_tokens[3]
         columns = databases[table_name].columns
 
@@ -303,13 +303,19 @@ def select():
             tempTable = databases[table_name].max(column_name, [], 0)
         tempTable.print_internal()
     elif(JOIN):
+        if(SIMPLE_WILDCARD):
+            print('columns = [columns from the two tables]')
+        else:
+            print('columns are specified')
+            
         if(SINGLE_WHERE):
             print('TO DO')
         
         elif(DOUBLE_WHERE):
             print('TO DO')
-        
+
         else:
+            #just a regular join with no where
             print('TO DO')
     nullify()
 
@@ -395,6 +401,8 @@ def validateSelect():
     if('.' in query_tokens[1]):
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
+                global JOIN
+                JOIN = True
                 return validateJoin()
             elif(',' in query_tokens[3]):
                 raise Unsupported_Functionality('Unsupported Functionality: cannot select from multiple tables if not in a join')
@@ -419,6 +427,10 @@ def validateSelect():
 
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
+                global SIMPLE_WILDCARD
+                global JOIN
+                SIMPLE_WILDCARD = True
+                JOIN = True
                 return validateWildcardJoin()
         if(',' in table_name):
             raise Unsupported_Functionality('Unsupported Functionality: cannot select from multiple tables if not in a join')
