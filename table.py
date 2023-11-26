@@ -47,7 +47,6 @@ class Table:
         self.for_keys = dict()
         self.ref_table = ""
         self.indexing = dict()
-        # self.tuples = list() # only need one
         self.size = 0
         self.pri_lock = False # True for primary key defined, false not defined
         self.for_lock = False # True for primary key defined, false not defined
@@ -213,10 +212,6 @@ class Table:
             # Will either have size 3 or 7 dependending on whether there are two conditions or not
         #single = an integer (0,1,2) which specifies how many conditions there are 
 
-        addRow = False
-        first = False
-        second = False
-
         #If there is no where clause, copy values from relevant columns into new relation
         if(single == 0):
             for key, inner_dict in self.indexing.items():
@@ -233,55 +228,49 @@ class Table:
         #if only one condition, add all values from relevant columns into new relation that meet the condition
         elif(single == 1):
             for key, inner_dict in self.indexing.items():
-                for column, value in inner_dict.items():
-                    if column in newColumns and column == conditions[0]:
-                        if(evaluateCondition(value, conditions[1], conditions[2])):
-
-                            if key not in tempTable.indexing:
+                value = inner_dict[conditions[0]]
+                if(evaluateCondition(value, conditions[1], conditions[2])):
+                    for column, val in inner_dict.items():
+                        if(column in newColumns):
+                            if(key not in tempTable.indexing):
                                 tempTable.indexing[key] = {}
-
-                            tempTable.indexing[key][column] = value
+                            tempTable.indexing[key][column] = val
                             tempTable.size+=1
-                            addRow = True
-
-                    if(addRow):
-                        tempTable.indexing[key][column] = value
-
-                addRow = False
-
             tempTable.columns = list(newColumns)
         #if two conditions, same idea as above but a bit more fiddly
         elif(single == 2):
             for key, inner_dict in self.indexing.items():
-                for column, value in inner_dict.items():
-                    if column in newColumns and (column == conditions[0]):
-                        if(evaluateCondition(value, conditions[1], conditions[2])):
-                            first = True
-                    elif column in newColumns and (column == conditions[4]):
-                        if(evaluateCondition(value, conditions[5], conditions[6])):
-                            second = True
+                value1 = inner_dict[conditions[0]]
+                value2 = inner_dict[conditions[4]]
+                condition1 = evaluateCondition(value1, conditions[1], conditions[2])
 
-                        if(conditions[3] == 'AND' and first and second):
-                            break
-                        elif(conditions[3] == 'OR' and (first or second)):
-                            break
-
-                if(conditions[3] == 'AND' and first and second):
+                if(conditions[3] == 'AND' and condition1):
+                    condition2 = evaluateCondition(value2, conditions[5], conditions[6])
+                    if(condition2):
+                        for column, value in inner_dict.items():
+                            if column in newColumns:
+                                if key not in tempTable.indexing:
+                                    tempTable.indexing[key] = {}
+                                tempTable.indexing[key][column] = value
+                                tempTable.size+=1
+                
+                elif(conditions[3] == 'OR' and condition1 == True):
                     for column, value in inner_dict.items():
                         if column in newColumns:
                             if key not in tempTable.indexing:
                                 tempTable.indexing[key] = {}
                             tempTable.indexing[key][column] = value
                             tempTable.size+=1
-                elif(conditions[3] == 'OR' and (first or second)):
-                    for column, value in inner_dict.items():
-                        if column in newColumns:
-                            if key not in tempTable.indexing:
-                                tempTable.indexing[key] = {}
-                            tempTable.indexing[key][column] = value
-                            tempTable.size+=1
-                first = False
-                second = False
+
+                elif(conditions[3] == 'OR' and condition1 == False): #this could be combined with the first if but would create confusing logic so is being kept separate
+                    condition2 = evaluateCondition(value2, conditions[5], conditions[6])
+                    if(condition2):
+                        for column, value in inner_dict.items():
+                            if column in newColumns:
+                                if key not in tempTable.indexing:
+                                    tempTable.indexing[key] = {}
+                                tempTable.indexing[key][column] = value
+                                tempTable.size+=1
 
             tempTable.columns = list(newColumns)    
 
@@ -329,13 +318,19 @@ class Table:
                 
                 condition_value_one = int(inner_dict[conditions[0]])
                 condition_value_two = int(inner_dict[conditions[4]])
+                condition1 = evaluateCondition(condition_value_one, conditions[1], conditions[2])
 
-                if(conditions[3] == 'AND'):
-                    if(value > max and evaluateCondition(condition_value_one, conditions[1], conditions[2]) and evaluateCondition(condition_value_two, conditions[5], conditions[6])):
+                if(value > max):
+                    if(conditions[3] == 'AND' and condition1):
+                        condition2 = evaluateCondition(condition_value_two, conditions[5], conditions[6])
+                        if(condition2):
+                            max = value
+                    elif(conditions[3] == 'OR' and condition1):
                         max = value
-                elif(conditions[3] == 'OR'):
-                    if(value > max and (evaluateCondition(condition_value_one, conditions[1], conditions[2]) or evaluateCondition(condition_value_two, conditions[5], conditions[6]))):
-                        max = value
+                    elif(conditions[3] == 'OR' and condition1 == False):
+                        condition2 = evaluateCondition(condition_value_two, conditions[5], conditions[6])
+                        if(condition2):
+                            max = value
                 
         if(max == INT_MIN):
             tempTable = Table()
@@ -348,3 +343,47 @@ class Table:
         tempTable.size = 1
 
         return tempTable
+    
+    def nestedLoop(self, table, columns, joinConditions, self_name, table_name, single):
+        # larger relation is self, smaller relation is table
+
+        tempTable = Table() 
+
+        self_join_column = joinConditions[0][1]
+        table_join_column = joinConditions[1][1]
+
+        for key, inner_dict in table.indexing.items():
+            for key2, inner_dict2 in self.indexing.items():
+                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
+                    tempTable.addRow(inner_dict, inner_dict2, columns, key, self_name, table_name)
+        return tempTable
+
+    def mergeScan(self, table2, columns, joinConditions):
+        print('do something')
+
+    def addRow(self, inner_dict, inner_dict2, columns, key, self_name, table_name):
+        #columns[0] = self.columns, columns[1] = table.columns
+        #inner_dict is table, inner_dict2 is self
+        #key is table
+
+        join_columns = []
+
+        for column, value in inner_dict.items():
+            if(column in columns[1]):
+                if(key not in self.indexing):
+                    self.indexing[key] = {}
+                column_name = str(table_name) + '.' + str(column)
+                self.indexing[key][column_name] = value
+                self.size+=1
+                join_columns.append(column_name)
+        
+        for column, value in inner_dict2.items():
+            if(column in columns[0]):
+                if(key not in self.indexing):
+                    self.indexing[key] = {}
+                column_name = str(self_name) + '.' + str(column)
+                self.indexing[key][column_name] = value
+                self.size+=1
+                join_columns.append(column_name)
+
+        self.columns = join_columns
