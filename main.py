@@ -326,9 +326,16 @@ def select():
             
             joinConditions = [left, right]
 
-            tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0])
+            if(SINGLE_WHERE):
+                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1)
+            elif(DOUBLE_WHERE):
+                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2)
+            else:
+                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 0)
+
             tempTable.print_internal()
 
+        #call nestedLoop on instance of larger table with smaller table as arg 
         elif(databases[right[0]].size > (1.5 * databases[left[0]].size)):
 
             if(SIMPLE_WILDCARD):
@@ -342,7 +349,13 @@ def select():
             
             joinConditions = [right, left]
 
-            tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0])
+            if(SINGLE_WHERE):
+                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 1)
+            elif(DOUBLE_WHERE):
+                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 2)
+            else: 
+                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 0)
+
             tempTable.print_internal()
 
         else:
@@ -359,19 +372,6 @@ def select():
             tempTable = databases[left[0]].mergeScan(databases[right[0]], columns, joinConditions)
             tempTable.print_internal()
 
-        ### ignore this for now ###
-        '''
-            
-        if(SINGLE_WHERE):
-            print('TO DO')
-        
-        elif(DOUBLE_WHERE):
-            print('TO DO')
-
-        else:
-            #just a regular join with no where
-            print('TO DO')
-        '''
     nullify()
 
 

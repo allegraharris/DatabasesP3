@@ -344,7 +344,7 @@ class Table:
 
         return tempTable
     
-    def nestedLoop(self, table, columns, joinConditions, self_name, table_name):
+    def nestedLoop(self, table, columns, joinConditions, self_name, table_name, single):
         # larger relation is self, smaller relation is table
 
         tempTable = Table() 
