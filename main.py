@@ -299,14 +299,67 @@ def select():
         left = joinConditions[0].strip().split('.')
         right = joinConditions[1].strip().split('.')
 
-        #if(databases[left[0]].size )
-
+        if(SIMPLE_WILDCARD == False):
+            pairs = query_tokens[1].split(',')
+            table_column_dict = {}
+    
+            for pair in pairs:
+                table, column = pair.strip().split('.')
         
+                if table in table_column_dict:
+                    table_column_dict[table].append(column)
+                else:
+                    table_column_dict[table] = [column]
 
-        if(SIMPLE_WILDCARD):
-            print('columns = [columns from the two tables]')
+        #call nestedLoop on instance of larger table with smaller table as arg 
+        if(databases[left[0]].size > (1.5 * databases[right[0]].size)):
+
+            if(SIMPLE_WILDCARD):
+                columns = [databases[left[0]].columns, databases[right[0]].columns]
+            else:
+                for table, columns in table_column_dict.items():
+                    if(table == databases[left[0]]):
+                        columns[0] = databases[left[0]].columns
+                    else:
+                        columns[1] = databases[right[0]].columns
+            
+            joinConditions = [left, right]
+
+            tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0])
+            tempTable.print_internal()
+
+        elif(databases[right[0]].size > (1.5 * databases[left[0]].size)):
+
+            if(SIMPLE_WILDCARD):
+                columns = [databases[right[0]].columns, databases[left[0]].columns]
+            else:
+                for table, columns in table_column_dict.items():
+                    if(table == databases[right[0]]):
+                        columns[0] = databases[right[0]].columns
+                    else:
+                        columns[1] = databases[left[0]].columns
+            
+            joinConditions = [right, left]
+
+            tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0])
+            tempTable.print_internal()
+
         else:
-            print('columns are specified')
+
+            if(SIMPLE_WILDCARD == False):
+                for table, columns in table_column_dict.items():
+                    if(table == databases[left[0]]):
+                        columns[0] = databases[left[0]].columns
+                    else:
+                        columns[1] = databases[right[0]].columns
+
+            joinConditions = [left, right]
+
+            tempTable = databases[left[0]].mergeScan(databases[right[0]], columns, joinConditions)
+            tempTable.print_internal()
+
+        ### ignore this for now ###
+        '''
             
         if(SINGLE_WHERE):
             print('TO DO')
@@ -317,6 +370,7 @@ def select():
         else:
             #just a regular join with no where
             print('TO DO')
+        '''
     nullify()
 
 
