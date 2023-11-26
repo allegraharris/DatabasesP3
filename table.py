@@ -213,10 +213,6 @@ class Table:
             # Will either have size 3 or 7 dependending on whether there are two conditions or not
         #single = an integer (0,1,2) which specifies how many conditions there are 
 
-        addRow = False
-        first = False
-        second = False
-
         #If there is no where clause, copy values from relevant columns into new relation
         if(single == 0):
             for key, inner_dict in self.indexing.items():
@@ -233,55 +229,34 @@ class Table:
         #if only one condition, add all values from relevant columns into new relation that meet the condition
         elif(single == 1):
             for key, inner_dict in self.indexing.items():
-                for column, value in inner_dict.items():
-                    if column in newColumns and column == conditions[0]:
-                        if(evaluateCondition(value, conditions[1], conditions[2])):
-
-                            if key not in tempTable.indexing:
+                value = inner_dict[conditions[0]]
+                if(evaluateCondition(value, conditions[1], conditions[2])):
+                    for column, val in inner_dict.items():
+                        if(column in newColumns):
+                            if(key not in tempTable.indexing):
                                 tempTable.indexing[key] = {}
-
-                            tempTable.indexing[key][column] = value
+                            tempTable.indexing[key][column] = val
                             tempTable.size+=1
-                            addRow = True
-
-                    if(addRow):
-                        tempTable.indexing[key][column] = value
-
-                addRow = False
-
             tempTable.columns = list(newColumns)
         #if two conditions, same idea as above but a bit more fiddly
         elif(single == 2):
             for key, inner_dict in self.indexing.items():
-                for column, value in inner_dict.items():
-                    if column in newColumns and (column == conditions[0]):
-                        if(evaluateCondition(value, conditions[1], conditions[2])):
-                            first = True
-                    elif column in newColumns and (column == conditions[4]):
-                        if(evaluateCondition(value, conditions[5], conditions[6])):
-                            second = True
-
-                        if(conditions[3] == 'AND' and first and second):
-                            break
-                        elif(conditions[3] == 'OR' and (first or second)):
-                            break
-
-                if(conditions[3] == 'AND' and first and second):
+                value1 = inner_dict[conditions[0]]
+                value2 = inner_dict[conditions[4]]
+                if(conditions[3] == 'AND' and evaluateCondition(value1, conditions[1], conditions[2]) and evaluateCondition(value2, conditions[5], conditions[6])):
                     for column, value in inner_dict.items():
                         if column in newColumns:
                             if key not in tempTable.indexing:
                                 tempTable.indexing[key] = {}
                             tempTable.indexing[key][column] = value
                             tempTable.size+=1
-                elif(conditions[3] == 'OR' and (first or second)):
+                elif(conditions[3] == 'OR' and (evaluateCondition(value1, conditions[1], conditions[2]) or evaluateCondition(value2, conditions[5], conditions[6]))):
                     for column, value in inner_dict.items():
                         if column in newColumns:
                             if key not in tempTable.indexing:
                                 tempTable.indexing[key] = {}
                             tempTable.indexing[key][column] = value
                             tempTable.size+=1
-                first = False
-                second = False
 
             tempTable.columns = list(newColumns)    
 

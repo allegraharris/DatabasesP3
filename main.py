@@ -428,7 +428,6 @@ def validateSelect():
         if(length >= 5):
             if(query_tokens[4] == 'JOIN'):
                 global SIMPLE_WILDCARD
-                global JOIN
                 SIMPLE_WILDCARD = True
                 JOIN = True
                 return validateWildcardJoin()
@@ -440,7 +439,6 @@ def validateSelect():
         else:
             select_columns = databases[table_name].column_data #all columns in database
             wildcardFlag = True
-            global SIMPLE_WILDCARD
             SIMPLE_WILDCARD = True
     elif('(' in query_tokens[1]):
         if(')' in query_tokens[1]):
