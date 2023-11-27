@@ -352,9 +352,6 @@ def select():
                 matches = re.findall(pattern, cleanClause)
                 conditions = [item.strip() for match in matches for item in match]
 
-                for condition in conditions: 
-                    print(condition)
-
                 conditions[0] = conditions[0].split('.')
                 conditions[4] = conditions[4].split('.')
 
