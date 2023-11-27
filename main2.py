@@ -592,11 +592,6 @@ def validateSelect(tokens):
         else:
             simple_select(validateColumns(tokens[1],tokens[3]),databases[tokens[3]])
             return
-        
-        
-
-    
-
 
     #Either a join or selecting from many tables
     if('.' in query_tokens[1]):
