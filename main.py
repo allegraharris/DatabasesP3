@@ -513,7 +513,7 @@ def validateInsert(tokens):
     if len(tokens) != 5 or tokens[1] != 'INTO':
         raise Syntax_Error("Syntax Error: INSERT")
     # Parse Table if it has ()
-    insert_info = re.split(r' \s*(?![^()]*\))',tokens[2])
+    insert_info = [token for token in re.split(r'(\w+|\([^)]*\))',tokens[2]) if token.strip()]
     if len(insert_info) != 2:
         raise Syntax_Error("Syntax Error: INSERT[2]")
     table_name = insert_info[0]
