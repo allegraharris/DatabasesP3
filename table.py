@@ -188,6 +188,29 @@ class Table:
         print(tb(tuples, headers, tablefmt='outline'))
         print(f"{self.size} rows in set")
         return
+    
+    def print_internal_select(self,column):
+        if self.size == 0:
+            print("<Empty Set>")
+            return
+        if column == '*':
+            self.print_internal()
+            return
+        columns = [token.strip() for token in column.split(',') if token]
+        print(columns)
+        headers = columns
+        tuples = []
+        for key in self.indexing.keys():
+            tuple = []
+            for column in headers:
+                tuple.append(self.indexing[key][column])
+            tuples.append(tuple)
+        print(tb(tuples, headers, tablefmt='outline'))
+        print(f"{self.size} rows in set")
+        
+
+        
+
 
     def describe(self):
         headers = ['Field','Type','KEY']
