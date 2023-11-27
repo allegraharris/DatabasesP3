@@ -1621,8 +1621,8 @@ class Table:
 
         tempTable = Table()
 
-        self_column = joinConditions[0][1]
-        table_column = joinConditions[1][1]
+        self_column = joinConditions[1][1]
+        table_column = joinConditions[0][1]
 
         random_self_key = next(iter(self.indexing))
         i = 0
