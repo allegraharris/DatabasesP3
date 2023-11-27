@@ -218,6 +218,11 @@ def double_where(table,where_tokens):
             raise Invalid_Type("Incompatible Type")
     return table.double_where(col1,col2,optr1,optr2,val1,val2,log)
 
+def join(join_tables,tabs,cols):
+    table = Table()
+    table = table.join_tables(join_tables[0],join_tables[1],tabs[0],cols[0],tabs[1],cols[1])
+    return table
+
 def eval_query():
     optr = query_tokens[0]
     if optr == 'CREATE':
@@ -608,7 +613,7 @@ def validateColumns(column,table_name):
     if column == '*':
         return column
     columns = [token.strip() for token in column.split(',') if token]
-    print(columns)
+    # print(columns)
     for col in columns:
         if col not in databases[table_name].column_data:
             raise Not_Exist(f"Column {column} does not exist")
@@ -626,6 +631,9 @@ def validateSelect(tokens):
         raise Syntax_Error("Syntax Error: invalid select")
     
     # check if table exist
+    if ',' in tokens[3]:
+        raise Unsupported_Functionality("Select from Multi Tables is not supported")
+
     if tokens[3] not in databases:
         raise Not_Exist(f"Table {tokens[4]} does not exist")
 
@@ -648,6 +656,21 @@ def validateSelect(tokens):
         else:
             simple_select(validateColumns(tokens[1],tokens[3]),table)
             return
+    
+    if length > 5:
+        if tokens[4] != 'JOIN':
+            raise Unsupported_Functionality("Only Join is supported")
+        if ',' in tokens[5]:
+            raise Unsupported_Functionality("Select from Multi Tables is not supported")
+        if tokens[5] not in databases:
+            raise Not_Exist(f"Table {tokens[5]} does not exist")
+        table = validateJoin(tokens)
+        if tokens[8] == ';':
+            simple_select(tokens[1],table)
+            return
+        
+        # validateJoin(tokens).print_internal_select(tokens[1])
+        return
 
     #Either a join or selecting from many tables
     if('.' in query_tokens[1]):
@@ -721,76 +744,73 @@ def validateSelect(tokens):
     
     return True
     
-def validateJoin():
-    if(len(query_tokens) < 8):
+def validateJoin(tokens):
+    if(len(tokens) < 9):
+        raise Syntax_Error('Syntax Error: Invalid Join syntax')
+    
+    if(tokens[6] != 'ON'):
+        raise Syntax_Error('Syntax Error: Invalid join syntax')
+    
+    if('=' not in tokens[7]):
         raise Syntax_Error('Syntax Error: Invalid join syntax')
 
     #isolating each table_name.column_name
-    pairs = query_tokens[1].split(',')
-    table_column_dict = {}
-    joining_tables = []
+    pairs = tokens[1].split(',')
+    table_column_dict = { tokens[3]:[], tokens[5]:[] }
+    joining_tables = [tokens[3],tokens[5]]
     
-    for pair in pairs:
-        #separate table and column names
-        table, column = pair.strip().split('.')
-        
-        #check if table exists in dict
-        if table in table_column_dict:
-            table_column_dict[table].append(column)
-        else:
-            #if table doesn't exist create new entry 
-            table_column_dict[table] = [column]
+    if tokens[1] != '*':
+        for pair in pairs:
+            #separate table and column names
+            table, column = pair.strip().split('.')
+            
+            #check if table exists in dict
+            if table in table_column_dict:
+                table_column_dict[table].append(column)
+            else:
+                raise Syntax_Error("Syntax Error, JOIN: columns not from the join tables")
 
-    #validate all tables and their columns
-    for table in table_column_dict:
-        if(table not in databases):
-            raise Not_Exist("Table does not exist")
-        for column in table_column_dict[table]:
-            if(column not in databases[table].column_data):
-                raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
+        #validate all tables and their columns
+        for table in table_column_dict:
+            for column in table_column_dict[table]:
+                if(column not in databases[table].column_data):
+                    raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
             
     #we're only selecting from one table
-    if(',' not in query_tokens[3]):
-        joining_tables = [query_tokens[3]]
-    #selecting from multiple tables
-    else: 
-        joining_tables = [value.strip() for value in query_tokens[3].split(',')]
+    # if(',' not in query_tokens[3]):
+    #     joining_tables = [query_tokens[3]]
+    # #selecting from multiple tables
+    # else: 
+    #     joining_tables = [value.strip() for value in query_tokens[3].split(',')]
 
-    if(',' in query_tokens[5]):
-        raise Syntax_Error('Syntax Error: ' + query_tokens[5])
+    # if(',' in query_tokens[5]):
+    #     raise Syntax_Error('Syntax Error: ' + query_tokens[5])
 
     #adding the table we're joining on
-    joining_tables.append(query_tokens[5])
+    # joining_tables.append(query_tokens[5])
 
     #checking that tables we're joining on exist 
-    for table in joining_tables:
-        if(table not in databases):
-            raise Not_Exist("Table does not exist")
+    # for table in joining_tables:
+    #     if(table not in databases):
+    #         raise Not_Exist("Table does not exist")
 
     #checking that we're selecting from tables that are specified in the join
-    for table in table_column_dict:
-        if(table not in joining_tables):
-            raise Syntax_Error('Syntax Error: Cannot select from a table that is not specified in the join')
-    
-    if(query_tokens[6] != 'ON'):
-        raise Syntax_Error('Syntax Error: Invalid join syntax')
-    
-    #must join on a certain column
-    if('=' not in query_tokens[7]):
-        raise Syntax_Error('Syntax Error: Invalid join syntax')
+    # for table in table_column_dict:
+    #     if(table not in joining_tables):
+    #         raise Syntax_Error('Syntax Error: Cannot select from a table that is not specified in the join')
     
     #verifying that tables and their columns that we're joining on are valid
-    joinPairs = query_tokens[7].strip().split('=')
+    joinPairs = tokens[7].strip().split('=')
 
     tabs = []
     cols = []
 
     for pair in joinPairs:
         table, column = pair.strip().split('.')
-        print("Table: " + table + " Column: " + column)
+        # print("Table: " + table + " Column: " + column)
         
         if(table not in joining_tables):
-            raise Syntax_Error('Syntax Error: Invalid join syntax')
+            raise Syntax_Error('Syntax Error: Invalid Join syntax')
         
         if(column not in databases[table].column_data):
             raise Syntax_Error('Syntax Error: Column ' + column + ' does not exist')
@@ -801,14 +821,9 @@ def validateJoin():
     if(databases[tabs[0]].column_data[cols[0]][0] != databases[tabs[1]].column_data[cols[1]][0]):
         raise Syntax_Error('Syntax Error: Cannot join on columns of different types')
     
-    #checking if it also has a where clause 
-    if(len(query_tokens) > 8):
-        if(query_tokens[8].startswith('WHERE')):
-            return validateWhere(joining_tables, ' ', query_tokens[8], True)
-        elif(query_tokens[8] != ';'):
-            raise Syntax_Error('Syntax Error: ' + query_tokens[8])
+    #checking if it also has a where clause
+    return join(joining_tables,tabs,cols)
         
-    return True
 
 def validateWildcardJoin():
     tables = []

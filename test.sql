@@ -27,3 +27,6 @@ select * from departments where dep_id < 3;
 select dep_id from departments where dep_name != 'math';
 select * from departments where dep_id <= 5 and dep_name = 'math';
 select * from departments where dep_id = 1 or dep_id = 2;
+select max(dep_id) from 
+departments where dep_id = 1 or dep_id = 2;
+select * from departments join employees on departments.dep_id = employees.dep_id;

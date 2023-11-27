@@ -17,30 +17,21 @@ from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 
 def evaluateCondition(value1, operator, value2):
-        try:
-            value2 = int(value2)
-            if operator == '=':
-                return value1 == value2
-            elif operator == '!=':
-                return value1 != value2
-            elif operator == '>':
-                return value1 > value2
-            elif operator == '>=':
-                return value1 >= value2
-            elif operator == '<':
-                return value1 < value2
-            elif operator == '<=':
-                return value1 <= value2
-        except ValueError:
-            value2 = value2.replace("'", "")
-            if operator == '=':
-                return value1 == value2
-            elif operator == '!=':
-                return value1 != value2
-            else:
-                raise Syntax_Error('Syntax Error: can only use = or != on string type')
-                
-        return False
+    # value2 = int(value2)
+    if operator == '=':
+        return value1 == value2
+    elif operator == '!=':
+        return value1 != value2
+    elif operator == '>':
+        return value1 > value2
+    elif operator == '>=':
+        return value1 >= value2
+    elif operator == '<':
+        return value1 < value2
+    elif operator == '<=':
+        return value1 <= value2
+    return False
+
 class Table:
     def __init__(self):
         self.columns = list()
@@ -239,46 +230,15 @@ class Table:
         table.copy(self)
         # print(table.columns)
 
-        if optr == '=':
-            key = set()
-            if column in self.pri_keys and len(self.pri_keys) == 1:
-                key.add(value)
-                key = frozenset(key)
-                if key in self.indexing:
-                    table.indexing[key] = self.indexing[key]
-                    table.size += 1
-            else:
-                for key in self.indexing.keys():
-                    if self.indexing[key][column] == value:
-                        table.indexing[key] = self.indexing[key]
-                        table.size += 1
-        elif optr == '<':
+        if optr == '=' and column in self.pri_keys and len(self.pri_keys) == 1:
+            key = frozenset({value})
+            if key in self.indexing:
+                table.indexing[key] = self.indexing[key]
+                table.size += 1
+      
+        else:
             for key in self.indexing.keys():
-                if self.indexing[key][column] < value:
-                    table.indexing[key] = self.indexing[key]
-                    table.size += 1
-
-        elif optr == '>':
-            for key in self.indexing.keys():
-                if self.indexing[key][column] > value:
-                    table.indexing[key] = self.indexing[key]
-                    table.size += 1
-
-        elif optr == '<=':
-            for key in self.indexing.keys():
-                if self.indexing[key][column] <= value:
-                    table.indexing[key] = self.indexing[key]
-                    table.size += 1
-        
-        elif optr == '>=':
-            for key in self.indexing.keys():
-                if self.indexing[key][column] >= value:
-                    table.indexing[key] = self.indexing[key]
-                    table.size += 1
-        
-        elif optr == '!=':
-            for key in self.indexing.keys():
-                if self.indexing[key][column] != value:
+                if evaluateCondition(self.indexing[key][column],optr,value):
                     table.indexing[key] = self.indexing[key]
                     table.size += 1
 
@@ -290,9 +250,7 @@ class Table:
         table.copy(self)
         if log == 'AND':
             if col1 in self.pri_keys and col2 in self.pri_keys and len(self.pri_keys) == 2 and col1 == col2:
-                key.add(val1)
-                key.add(val2)
-                key = frozenset(key)
+                key = frozenset({val1,val2})
                 if key in self.indexing:
                     table.indexing[key] = self.indexing[key]
             elif col1 in self.pri_keys:
@@ -301,7 +259,7 @@ class Table:
             else:
                 table = self.single_where(col2,optr2,val2)
                 table = table.single_where(col1,optr1,val1)
-        else:
+        elif log == 'OR':
             table_1 = self.single_where(col1,optr1,val1)
             table_2 = self.single_where(col2,optr2,val2)
             table.indexing.update(table_1.indexing)
@@ -419,6 +377,46 @@ class Table:
                     min_value = self.indexing[key][column]
         min_table.indexing[0] = {min_column:min_value}
         return min_table
+    
+    def join_tables(self,table_name_1,table_name_2,tab_1,col_1,tab_2,col_2):
+        table = Table()
+        table_1 = databases[table_name_1]
+        table_2 = databases[table_name_2]
+        for key in table_1.column_data.keys():
+            table.column_data[f"{table_name_1}.{key}"] = table_1.column_data[key]
+            table.columns.append(f"{table_name_1}.{key}")
+        offset = len(table.column_data)
+        for key in table_2.column_data.keys():
+            table.column_data[f"{table_name_2}.{key}"] = table_2.column_data[key]
+            table.column_data[f"{table_name_2}.{key}"][2] += offset
+            table.columns.append(f"{table_name_2}.{key}")
+        # print(table.column_data)
+        # print(table.columns)
+        # for key in table_1.pri_keys:
+        #     table.pri_keys.add(f"{table_name_1}.{key}")
+        # for key in table_2.pri_keys:
+        #     table.pri_keys.add(f"{table_name_2}.{key}")
+        table.lock_pri_keys()
+        # print(table.pri_keys)
+        return table.join_tuples(table_name_1,table_name_2,tab_1,col_1,tab_2,col_2)
+
+    def join_tuples(self,table_name_1,table_name_2,tab_1,col_1,tab_2,col_2):
+        table_1 = databases[table_name_1]
+        table_2 = databases[table_name_2]
+        for tuple_1 in table_1.indexing.values():
+            for tuple_2 in table_2.indexing.values():
+                # print(tuple_1,tuple_2)
+                if tab_1 == table_name_1 and tab_2 == table_name_2:
+                    # print(tuple_1[col_1],tuple_2[col_2])
+                    if tuple_1[col_1] == tuple_2[col_2]:
+                        new_tuple = dict()
+                        for key in tuple_1.keys():
+                            new_tuple[f"{table_name_1}.{key}"] = tuple_1[key]
+                        for key in tuple_2.keys():
+                            new_tuple[f"{table_name_2}.{key}"] = tuple_2[key]
+                        self.indexing[self.size] = new_tuple
+                        self.size += 1
+        return self
         
     
     def max(self, column, conditions, single):
