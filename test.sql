@@ -25,4 +25,5 @@ select * from departments where dep_id = 1;
 select * from departments where dep_name = 'chem';
 select * from departments where dep_id < 3;
 select dep_id from departments where dep_name != 'math';
-
+select * from departments where dep_id <= 5 and dep_name = 'math';
+select * from departments where dep_id = 1 or dep_id = 2;

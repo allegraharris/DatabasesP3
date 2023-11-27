@@ -198,6 +198,7 @@ class Table:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
         print(tb(tuples, headers, tablefmt='outline'))
+        print(f"{self.size} rows in set")
         return
     
     def print_internal_select(self,column):
@@ -282,7 +283,35 @@ class Table:
                     table.size += 1
 
         return table
-                
+
+    def double_where(self,col1,col2,optr1,optr2,val1,val2,log):
+        key = set()
+        table = Table()
+        table.copy(self)
+        if log == 'AND':
+            if col1 in self.pri_keys and col2 in self.pri_keys and len(self.pri_keys) == 2 and col1 == col2:
+                key.add(val1)
+                key.add(val2)
+                key = frozenset(key)
+                if key in self.indexing:
+                    table.indexing[key] = self.indexing[key]
+            elif col1 in self.pri_keys:
+                table = self.single_where(col1,optr1,val1)
+                table = table.single_where(col2,optr2,val2)
+            else:
+                table = self.single_where(col2,optr2,val2)
+                table = table.single_where(col1,optr1,val1)
+        else:
+            table_1 = self.single_where(col1,optr1,val1)
+            table_2 = self.single_where(col2,optr2,val2)
+            table.indexing.update(table_1.indexing)
+            table.indexing.update(table_2.indexing)
+            table.size = len(table.indexing)
+        return table
+
+
+
+
 
 
     def copyColumns(self, tempTable, newColumns, conditions, single):

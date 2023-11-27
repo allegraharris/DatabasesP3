@@ -194,6 +194,29 @@ def single_where(table,where_tokens):
             raise Invalid_Type("Incompatible Type")
     return table.single_where(col,optr,val)
 
+def double_where(table,where_tokens):
+    col1 = where_tokens[0]
+    optr1 = where_tokens[1]
+    val1 = where_tokens[2]
+    log = where_tokens[3]
+    col2 = where_tokens[4]
+    optr2 = where_tokens[5]
+    val2 = where_tokens[6]
+    if optr1 not in LOGICAL_OPERATORS or optr2 not in LOGICAL_OPERATORS:
+        raise Syntax_Error("Invalid Logical Operators")
+    if optr1 not in STRING_OPERATORS and table.column_data[col1][0] == 'STRING' or optr2 not in STRING_OPERATORS and table.column_data[col2][0] == 'STRING':
+        raise Invalid_Type("Incompatiple Type for Logical Operators")
+    if table.column_data[col1][0] == 'INT':
+        try:
+            val1 = int(val1)
+        except ValueError:
+            raise Invalid_Type("Incompatible Type")
+    if table.column_data[col2][0] == 'INT':
+        try:
+            val2 = int(val2)
+        except ValueError:
+            raise Invalid_Type("Incompatible Type")
+    return table.double_where(col1,col2,optr1,optr2,val1,val2,log)
 
 def eval_query():
     optr = query_tokens[0]
@@ -613,6 +636,8 @@ def validateSelect(tokens):
             where_tokens = validateWhere([],tokens[3],tokens[4],False)
             if len(where_tokens) == 3:
                 table = single_where(table,where_tokens)
+            if len(where_tokens) == 7:
+                table = double_where(table,where_tokens)
         if '(' in tokens[1]:
             if ')' in tokens[1]:
                 func = validateAggregateFunction(tokens[1],tokens[3])
