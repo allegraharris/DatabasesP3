@@ -192,9 +192,6 @@ class Table:
             if self.size == 0:
                 print("<Empty Set>")
                 return
-            if column == '*':
-                self.print_internal()
-                return
             columns = [token.strip() for token in column.split(',') if token]
             print(columns)
             headers = columns

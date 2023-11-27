@@ -162,6 +162,15 @@ def execute(filename):
         print()
     return
 
+def simple_select(cols,table):
+    # print(cols)
+    if cols == '*':
+        table.print_internal()
+        return
+    table.print_internal_select(cols)
+    return
+
+
 def eval_query():
     optr = query_tokens[0]
     if optr == 'CREATE':
@@ -570,7 +579,7 @@ def validateSelect(tokens):
         raise Syntax_Error("Syntax Error: invalid select")
     
     # check if table exist
-    if tokens[4] not in databases:
+    if tokens[3] not in databases:
         raise Not_Exist(f"Table {tokens[4]} does not exist")
 
     ## No Join
@@ -581,7 +590,7 @@ def validateSelect(tokens):
             else:
                 raise Syntax_Error("Syntax Error: Aggregate function has no closing parentheses")
         else:
-            simple_select(validateColumns(tokens[1],tokens[4]),tokens[4])
+            simple_select(validateColumns(tokens[1],tokens[3]),databases[tokens[3]])
             return
         
         

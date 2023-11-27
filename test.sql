@@ -18,3 +18,4 @@ INSERT INTO employees()
     VALUES (822278827,'charlie mei',3), (235123,'allegra harris',2), (2358437820,'sarah green',4);
 
 insert into departments(dep_id, dep_name) values (6,'econ');
+select * from departments;
