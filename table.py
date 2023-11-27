@@ -878,28 +878,84 @@ class Table:
                                     tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
 
         return tempTable
+    
+    def addRowMergeScan(self, self_row, table_row, columns, self_column_names, table_column_names, self_name, table_name):
+        join_columns = []
+        global JOIN_KEY
 
-    def mergeScan(self, table, columns, joinConditions):
-        '''
-        if(joinConditions[0][1] in self.pri_keys):
-            if(len(self.pri_keys) == 1):
-                sorted_self = dict(sorted(self.items(), key=lambda item: item[0]))
+        for i in range(len(self_row)):
+            if(self_column_names[i] in columns[0]):
+                if(JOIN_KEY not in self.indexing):
+                    self.indexing[JOIN_KEY] = {}
+                column_name = (str(self_name) + '.' + str(self_column_names[i]))
+                self.indexing[JOIN_KEY][column_name] = self_row[i]
+                self.size+=1
+                join_columns.append(column_name)
+            
+        for i in range(len(table_row)):
+            if(table_column_names[i] in columns[1]):
+                if(JOIN_KEY not in self.indexing):
+                    self.indexing[JOIN_KEY] = {}
+                column_name = (str(table_name) + '.' + str(table_column_names[i]))
+                self.indexing[JOIN_KEY][column_name] = table_row[i]
+                join_columns.append(column_name)
+        
+        JOIN_KEY += 1
+
+        self.columns = join_columns
+
+    def mergeScan(self, table, columns, joinConditions, self_name, table_name):
+        #columns[0] = self, columns[1] = table
+
+        self_column_names = []
+        table_column_names = []
+
+        tempTable = Table()
+
+        self_column = joinConditions[0][1]
+        table_column = joinConditions[1][1]
+
+        random_self_key = next(iter(self.indexing))
+        i = 0
+        seen_self = False
+
+        for column in self.indexing[random_self_key]:
+            self_column_names.append(column)
+            if(column == self_column):
+                seen_self = True
+            if(seen_self == False):
+                i+=1
+
+        random_table_key = next(iter(table.indexing))
+        j = 0
+        seen_table = False
+
+        for column in table.indexing[random_table_key]:
+            table_column_names.append(column)
+            if(column == table_column):
+                seen_table = True
+            if(seen_table == False):
+                j+=1
+
+        self_list = [[value for value in inner_dict.values()] for inner_dict in self.indexing.values()]
+        table_list = [[value for value in inner_dict.values()] for inner_dict in table.indexing.values()]
+
+        sorted_self = sorted(self_list, key=lambda x: x[i])
+        sorted_table = sorted(table_list, key=lambda x: x[j])
+
+        k = l = 0
+
+        while k < len(sorted_self) and l < len(sorted_table):
+            if sorted_self[k][i] == sorted_table[l][j]:
+                tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
+                k += 1
+                l += 1
+            elif sorted_self[k][i] < sorted_table[l][j]:
+                k += 1
             else:
-                sorted_self = dict(sorted(self.items(), key=lambda item: item[1][joinConditions[0][1]]))
-        else:
-            sorted_self = dict(sorted(self.items(), key=lambda item: item[1][joinConditions[0][1]]))
-
-        if(joinConditions[1][1] in table.pri_keys):
-            if(len(table.pri_keys) == 1):
-                sorted_self = dict(sorted(table.items(), key=lambda item: item[0]))
-            else:
-                sorted_self = dict(sorted(table.items(), key=lambda item: item[1][joinConditions[1][1]]))
-        else: 
-            sorted_self = dict(sorted(table.items(), key=lambda item: item[1][joinConditions[1][1]]))       
-
-        '''
-       # for
-        print('do something')
+                l += 1
+                
+        return tempTable 
 
     def addRow(self, inner_dict, inner_dict2, columns, self_name, table_name):
         #columns[0] = self.columns, columns[1] = table.columns
@@ -929,3 +985,4 @@ class Table:
         JOIN_KEY += 1
 
         self.columns = join_columns
+
