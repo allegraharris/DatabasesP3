@@ -918,6 +918,7 @@ class Table:
 
     def mergeScanHelperSingle(self, tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant):
         condition_column_var = ''
+        condition_var_index = 0
         condition_column = conditions[0][1]
         if(constant == False):
             condition_column_var = conditions[2][1]
@@ -981,7 +982,200 @@ class Table:
                     k += 1
                 else:
                     l += 1
-        
+
+    def mergeScanHelperOr(self, tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2):
+        condition_column_var = ''
+        condition_column = conditions[0][1]
+        condition_column2 = conditions[4][1]
+
+        if(constant == False):
+            condition_column_var = conditions[2][1]
+        if(constant2 == False):
+            condition_column_var_2 = conditions[6][1]
+
+        if(conditions[0][0] == self_name and conditions[4][0] == self_name):
+            condition_index = self_column_names.index(condition_column)
+            condition_index2 = self_column_names.index(condition_column2)
+
+            if(constant == False and conditions[2][0] == self_name):
+                condition_var_index = self_column_names.index(condition_column_var)
+            elif(constant == False and conditions[2][0] == table_name):
+                condition_var_index = table_column_names.index(condition_column_var)
+
+            if(constant2 == False and conditions[2][0] == self_name):
+                condition_var_index_2 = self_column_names.index(condition_column_var_2)
+            elif(constant2 == False and conditions[2][0] == table_name):
+                condition_var_index_2 = table_column_names.index(condition_column_var_2)
+
+            k = l = 0
+
+            while k < len(sorted_self) and l < len(sorted_table):
+                if sorted_self[k][i] == sorted_table[l][j]:
+                    condition_value = sorted_self[k][condition_index]
+                    condition_met = False
+
+                    if(constant):
+                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
+                        if(constant2):
+                            if(condition_met):
+                                condition_value_2 = sorted_self[k][condition_index2]
+                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
+                            else: 
+                                condition_met = False
+                        else:
+                            if(conditions[2][0] == self_name):
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[k][condition_index2]
+                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+                                else:
+                                    condition_met = False
+                            else:
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[condition_index2]
+                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+                    else:
+                        if(conditions[2][0] == self_name):
+                            condition_value = sorted_self[k][condition_var_index]
+                            condition_value_var = sorted_self[k][condition_var_index_2]
+                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
+                        else:
+                            condition_value = sorted_self[k][condition_var_index]
+                            condition_value_var = sorted_table[l][condition_var_index_2]
+                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
+
+                        if(constant2):
+                            if(condition_met):
+                                condition_value_2 = sorted_self[k][condition_index2]
+                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
+                            else:
+                                condition_met = False
+                        else:
+                            if(conditions[2][0] == self_name):
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[k][condition_index2]
+                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+                                else:
+                                    condition_met = False
+                            else:
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[k][condition_index2]
+                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+
+                    if(condition_met):
+                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
+                    k += 1
+                    l += 1
+                elif sorted_self[k][i] < sorted_table[l][j]:
+                    k += 1
+                else:
+                    l += 1
+        elif(conditions[0][0] == table_name and conditions[4][0] == table_name):
+            print('to do')
+        elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
+            print('to do')
+        elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
+            print('to do')
+
+    def mergeScanHelperAnd(self, tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2):
+        condition_column_var = ''
+        condition_column = conditions[0][1]
+        condition_column2 = conditions[4][1]
+
+        if(constant == False):
+            condition_column_var = conditions[2][1]
+        if(constant2 == False):
+            condition_column_var_2 = conditions[6][1]
+
+        if(conditions[0][0] == self_name and conditions[4][0] == self_name):
+            condition_index = self_column_names.index(condition_column)
+            condition_index2 = self_column_names.index(condition_column2)
+
+            if(constant == False and conditions[2][0] == self_name):
+                condition_var_index = self_column_names.index(condition_column_var)
+            elif(constant == False and conditions[2][0] == table_name):
+                condition_var_index = table_column_names.index(condition_column_var)
+
+            if(constant2 == False and conditions[2][0] == self_name):
+                condition_var_index_2 = self_column_names.index(condition_column_var_2)
+            elif(constant2 == False and conditions[2][0] == table_name):
+                condition_var_index_2 = table_column_names.index(condition_column_var_2)
+
+            k = l = 0
+
+            while k < len(sorted_self) and l < len(sorted_table):
+                if sorted_self[k][i] == sorted_table[l][j]:
+                    condition_value = sorted_self[k][condition_index]
+                    condition_met = False
+
+                    if(constant):
+                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
+                        if(constant2):
+                            if(condition_met):
+                                condition_value_2 = sorted_self[k][condition_index2]
+                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
+                            else: 
+                                condition_met = False
+                        else:
+                            if(conditions[2][0] == self_name):
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[k][condition_index2]
+                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+                                else:
+                                    condition_met = False
+                            else:
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[condition_index2]
+                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+                    else:
+                        if(conditions[2][0] == self_name):
+                            condition_value = sorted_self[k][condition_var_index]
+                            condition_value_var = sorted_self[k][condition_var_index_2]
+                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
+                        else:
+                            condition_value = sorted_self[k][condition_var_index]
+                            condition_value_var = sorted_table[l][condition_var_index_2]
+                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
+
+                        if(constant2):
+                            if(condition_met):
+                                condition_value_2 = sorted_self[k][condition_index2]
+                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
+                            else:
+                                condition_met = False
+                        else:
+                            if(conditions[2][0] == self_name):
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[k][condition_index2]
+                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+                                else:
+                                    condition_met = False
+                            else:
+                                if(condition_met):
+                                    condition_value_2 = sorted_self[k][condition_index2]
+                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
+                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
+
+                    if(condition_met):
+                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
+                    k += 1
+                    l += 1
+                elif sorted_self[k][i] < sorted_table[l][j]:
+                    k += 1
+                else:
+                    l += 1
+        elif(conditions[0][0] == table_name and conditions[4][0] == table_name):
+            print('to do')
+        elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
+            print('to do')
+        elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
+            print('to do')
 
     def mergeScan(self, table, columns, joinConditions, self_name, table_name, single, conditions, constant, constant2):
         #columns[0] = self, columns[1] = table
@@ -1026,7 +1220,12 @@ class Table:
             self.mergeScanHelper(tempTable, sorted_self, sorted_table, i, j, columns, self_column_names, table_column_names, self_name, table_name)
         elif(single == 1):
             self.mergeScanHelperSingle(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
-                
+        elif(single == 2):
+            if(conditions[3] == 'AND'):
+                self.mergeScanHelperAnd(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
+            else:
+                self.mergeScanHelperOr(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
+   
                 
         return tempTable 
     
