@@ -38,7 +38,7 @@ from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, 
 
 keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE']
 sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT','EXECUTE']
-LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
+LOGICAL_OPERATORS = ['!=', '=', '>=', '>', '<=', '<']
 STRING_OPERATORS = ['=', '!=']
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
@@ -232,7 +232,7 @@ def select():
         if(SINGLE_WHERE):
             numChars = len(query_tokens[4])
             cleanClause = query_tokens[4][6:numChars-1] #removing where and semi-colon
-            pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
+            pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*"
             conditions = re.split(pattern, cleanClause)
             conditions = [value.strip() for value in conditions if value.strip()]
 
