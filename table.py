@@ -1099,9 +1099,9 @@ class Table:
             elif(constant == False and conditions[2][0] == table_name):
                 condition_var_index = table_column_names.index(condition_column_var)
 
-            if(constant2 == False and conditions[2][0] == self_name):
+            if(constant2 == False and conditions[6][0] == self_name):
                 condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[2][0] == table_name):
+            elif(constant2 == False and conditions[6][0] == table_name):
                 condition_var_index_2 = table_column_names.index(condition_column_var_2)
 
             k = l = 0
@@ -1120,7 +1120,7 @@ class Table:
                             else: 
                                 condition_met = False
                         else:
-                            if(conditions[2][0] == self_name):
+                            if(conditions[6][0] == self_name):
                                 if(condition_met):
                                     condition_value_2 = sorted_self[k][condition_index2]
                                     condition_value_var_2 = sorted_self[k][condition_var_index_2]
@@ -1149,7 +1149,7 @@ class Table:
                             else:
                                 condition_met = False
                         else:
-                            if(conditions[2][0] == self_name):
+                            if(conditions[6][0] == self_name):
                                 if(condition_met):
                                     condition_value_2 = sorted_self[k][condition_index2]
                                     condition_value_var_2 = sorted_self[k][condition_var_index_2]
@@ -1179,9 +1179,9 @@ class Table:
             elif(constant == False and conditions[2][0] == table_name):
                 condition_var_index = table_column_names.index(condition_column_var)
 
-            if(constant2 == False and conditions[2][0] == self_name):
+            if(constant2 == False and conditions[6][0] == self_name):
                 condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[2][0] == table_name):
+            elif(constant2 == False and conditions[6][0] == table_name):
                 condition_var_index_2 = table_column_names.index(condition_column_var_2)
 
             k = l = 0
@@ -1200,7 +1200,7 @@ class Table:
                             else: 
                                 condition_met = False
                         else:
-                            if(conditions[2][0] == self_name):
+                            if(conditions[6][0] == self_name):
                                 if(condition_met):
                                     condition_value_2 = sorted_table[l][condition_index2]
                                     condition_value_var_2 = sorted_self[k][condition_var_index_2]
@@ -1229,7 +1229,7 @@ class Table:
                             else:
                                 condition_met = False
                         else:
-                            if(conditions[2][0] == self_name):
+                            if(conditions[6][0] == self_name):
                                 if(condition_met):
                                     condition_value_2 = sorted_table[l][condition_index2]
                                     condition_value_var_2 = sorted_self[k][condition_var_index_2]
