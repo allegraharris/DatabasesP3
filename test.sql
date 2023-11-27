@@ -30,3 +30,6 @@ select * from departments where dep_id = 1 or dep_id = 2;
 select max(dep_id) from 
 departments where dep_id = 1 or dep_id = 2;
 select * from departments join employees on departments.dep_id = employees.dep_id;
+select * from departments join employees on departments.dep_id = employees.dep_id where departments.dep_id = 2;
+select * from departments join employees on departments.dep_id = employees.dep_id where departments.dep_id = 2 and employees.dep_id = 2;
+select * from departments join employees on departments.dep_id = employees.dep_id where departments.dep_id = 2 or employees.dep_id = 3;

@@ -668,7 +668,16 @@ def validateSelect(tokens):
         if tokens[8] == ';':
             simple_select(tokens[1],table)
             return
-        
+        if tokens[8] != ';' and tokens[8].startswith('WHERE'):
+            where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
+            print(where_tokens)
+            if len(where_tokens) == 5:
+                table = single_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4]])
+                simple_select(tokens[1],table)
+            elif len(where_tokens) == 11:
+                table = double_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4],where_tokens[5],f"{where_tokens[6]}.{where_tokens[8]}",where_tokens[9],where_tokens[10]])
+                simple_select(tokens[1],table)
+            return
         # validateJoin(tokens).print_internal_select(tokens[1])
         return
 
@@ -905,6 +914,9 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         #isolating column names using regex
         pattern = r'(\w+)\.(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
         tables_and_columns = re.findall(pattern, cleanClause)
+        tokens = [token for token in re.findall(r'\b\w+\b|[=<>!ANDOR]+|.', cleanClause) if token.strip() and token.strip() != "'"]
+        print(tables_and_columns)
+        # print(tokens)
 
         for pair in tables_and_columns:
             if(pair[0] not in databases):
@@ -913,6 +925,8 @@ def validateWhere(joining_tables, table_name, where_clause, join):
                 raise Syntax_Error('Syntax Error: ' + pair[0])
             if(pair[1] not in databases[pair[0]].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + pair[1] + ' does not exist')
+        return tokens
+    
     else: 
         #isolating column names using regex
         pattern = r'\b(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
