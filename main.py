@@ -785,10 +785,10 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 
     if(numConditions > 1):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
-    if(numOperators == 1):
+    if(numConditions == 0):
         global SINGLE_WHERE
         SINGLE_WHERE = True
-    elif(numOperators == 2):
+    else:
         global DOUBLE_WHERE
         DOUBLE_WHERE = True
     
