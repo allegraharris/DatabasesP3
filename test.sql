@@ -33,3 +33,4 @@ select * from departments join employees on departments.dep_id = employees.dep_i
 select * from departments join employees on departments.dep_id = employees.dep_id where departments.dep_id = 2;
 select * from departments join employees on departments.dep_id = employees.dep_id where departments.dep_id = 2 and employees.dep_id = 2;
 select * from departments join employees on departments.dep_id = employees.dep_id where departments.dep_id = 2 or employees.dep_id = 3;
+select departments.dep_name,departments.dep_id from departments join employees on departments.dep_id = employees.dep_id where departments.dep_id = 2 or employees.dep_id = 3;
