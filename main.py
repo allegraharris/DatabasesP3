@@ -39,7 +39,7 @@ from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, 
 keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE']
 sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT','EXECUTE']
 LOGICAL_OPERATORS = ['!=', '=', '>=', '>', '<=', '<']
-STRING_OPERATORS = ['=', '!=']
+STRING_OPERATORS = ['!=', '=']
 datatype = ['INT','STRING']
 key = ['PRIMARY','FOREIGN','KEY']
 sql_query = "CREATE TABLE people ( key_no INT NOT NULL, first_name INT NOT NULL, last_name INT NOT NULL, primary_key (key_no) );"
@@ -348,10 +348,9 @@ def select():
                 numChars = len(query_tokens[8])
                 cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
 
-                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*('[^']*'|\d+)\s*(AND|OR)?"
-                
+                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*(\w+\.\w+|\d+|'[^']*')\s*(AND|OR)?"
                 matches = re.findall(pattern, cleanClause)
-                conditions = [item.strip() for match in matches for item in match]
+                conditions = [item.strip() for match in matches for item in match if item.strip()]
 
                 conditions[0] = conditions[0].split('.')
                 conditions[4] = conditions[4].split('.')
@@ -409,9 +408,9 @@ def select():
                 numChars = len(query_tokens[8])
                 cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
 
-                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*('[^']*'|\d+)\s*(AND|OR)?"                
+                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*(\w+\.\w+|\d+|'[^']*')\s*(AND|OR)?"
                 matches = re.findall(pattern, cleanClause)
-                conditions = [item.strip() for match in matches for item in match]
+                conditions = [item.strip() for match in matches for item in match if item.strip()]
 
                 conditions[0] = conditions[0].split('.')
                 conditions[4] = conditions[4].split('.')
@@ -468,9 +467,12 @@ def select():
                 numChars = len(query_tokens[8])
                 cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
 
-                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*('[^']*'|\d+)\s*(AND|OR)?"
+                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*(\w+\.\w+|\d+|'[^']*')\s*(AND|OR)?"
                 matches = re.findall(pattern, cleanClause)
-                conditions = [item.strip() for match in matches for item in match]
+                conditions = [item.strip() for match in matches for item in match if item.strip()]
+
+                for condition in conditions:
+                    print(condition)
 
                 conditions[0] = conditions[0].split('.')
                 conditions[4] = conditions[4].split('.')

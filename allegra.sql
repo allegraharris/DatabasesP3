@@ -5,4 +5,4 @@ CREATE TABLE employees (emp_id INT, emp_name STRING, dep_id INT, primary key (em
 INSERT INTO departments () VALUES (1,'chem'), (2,'math'), (3,'cs'), (4,'physics'), (5,'biology');
 
 INSERT INTO employees () VALUES (8227,'charlie mei',3), (2353,'allegra harris',2), (2370,'sarah green',4), (3746,'charlie mei',5);
-SELECT * FROM employees JOIN departments ON employees.dep_id = departments.dep_id WHERE employees.dep_id=3 AND employees.emp_name='charlie mei'; 
+SELECT * FROM employees JOIN departments ON employees.dep_id = departments.dep_id WHERE employees.dep_id=3 OR employees.emp_name='charlie mei'; 
