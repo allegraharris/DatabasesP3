@@ -53,6 +53,17 @@ class Table:
         self.pri_lock = False # True for primary key defined, false not defined
         self.for_lock = False # True for primary key defined, false not defined
 
+    def copy(self,table):
+        self.columns = table.columns
+        self.column_data = table.column_data
+        self.pri_keys = table.pri_keys
+        self.for_keys = table.for_keys
+        self.ref_table = table.ref_table
+        self.indexing = dict()
+        self.size = 0
+        self.pri_lock = table.pri_lock # True for primary key defined, false not defined
+        self.for_lock = table.pri_lock # True for primary key defined, false not defined
+
     ### add column, primary key, or foreign key ###
     ### attribute is the raw input, e.g: net_id INT, PRIMARY KEY (net_id), PRIMARY KEY ()
     def add_attribute(self,attribute):
@@ -223,13 +234,54 @@ class Table:
         print(tb(tuples,headers,tablefmt='outline'))
 
     def single_where(self,column,optr,value):
+        table = Table()
+        table.copy(self)
+        # print(table.columns)
+
         if optr == '=':
             key = set()
             if column in self.pri_keys and len(self.pri_keys) == 1:
                 key.add(value)
                 key = frozenset(key)
-                if ()
+                if key in self.indexing:
+                    table.indexing[key] = self.indexing[key]
+                    table.size += 1
+            else:
+                for key in self.indexing.keys():
+                    if self.indexing[key][column] == value:
+                        table.indexing[key] = self.indexing[key]
+                        table.size += 1
+        elif optr == '<':
+            for key in self.indexing.keys():
+                if self.indexing[key][column] < value:
+                    table.indexing[key] = self.indexing[key]
+                    table.size += 1
 
+        elif optr == '>':
+            for key in self.indexing.keys():
+                if self.indexing[key][column] > value:
+                    table.indexing[key] = self.indexing[key]
+                    table.size += 1
+
+        elif optr == '<=':
+            for key in self.indexing.keys():
+                if self.indexing[key][column] <= value:
+                    table.indexing[key] = self.indexing[key]
+                    table.size += 1
+        
+        elif optr == '>=':
+            for key in self.indexing.keys():
+                if self.indexing[key][column] >= value:
+                    table.indexing[key] = self.indexing[key]
+                    table.size += 1
+        
+        elif optr == '!=':
+            for key in self.indexing.keys():
+                if self.indexing[key][column] != value:
+                    table.indexing[key] = self.indexing[key]
+                    table.size += 1
+
+        return table
                 
 
 

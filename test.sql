@@ -21,4 +21,8 @@ insert into departments(dep_id, dep_name) values (6,'econ');
 select * from departments;
 select max(dep_id) from departments;
 select min(dep_id) from departments;
+select * from departments where dep_id = 1;
+select * from departments where dep_name = 'chem';
+select * from departments where dep_id < 3;
+select dep_id from departments where dep_name != 'math';
 

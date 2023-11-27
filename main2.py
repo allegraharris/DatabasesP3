@@ -185,14 +185,13 @@ def single_where(table,where_tokens):
     val = where_tokens[2]
     if optr not in LOGICAL_OPERATORS:
         raise Syntax_Error("Invalid Logical Operators")
-    if optr not in STRING_OPERATORS and col not in table.columns_data[col][0] == 'STRING':
+    if optr not in STRING_OPERATORS and table.column_data[col][0] == 'STRING':
         raise Invalid_Type("Incompatiple Type for Logical Operators")
-    if table.columns_data[col][0] == 'INT':
+    if table.column_data[col][0] == 'INT':
         try:
             val = int(val)
         except ValueError:
             raise Invalid_Type("Incompatible Type")
-    
     return table.single_where(col,optr,val)
 
 
@@ -610,11 +609,10 @@ def validateSelect(tokens):
     ## No Join
     if length == 5:
         table = databases[tokens[3]]
-        if tokens[4] != ';' and tokens[4].startsWith('WHERE'):
+        if tokens[4] != ';' and tokens[4].startswith('WHERE'):
             where_tokens = validateWhere([],tokens[3],tokens[4],False)
             if len(where_tokens) == 3:
                 table = single_where(table,where_tokens)
-        
         if '(' in tokens[1]:
             if ')' in tokens[1]:
                 func = validateAggregateFunction(tokens[1],tokens[3])
