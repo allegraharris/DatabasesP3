@@ -374,7 +374,7 @@ def select():
                 elif('.' not in conditions[2] and '.' not in conditions[6]):
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, True)
             else:
-                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 0, conditions, False, False)
+                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 0, [], False, False)
 
             tempTable.print_internal()
 
@@ -435,7 +435,7 @@ def select():
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, True)
 
             else: 
-                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 0)
+                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 0, [], False, False)
 
             tempTable.print_internal()
 
@@ -785,12 +785,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
     #counting number of conidtions
     numConditions = cleanClause.count('AND') + cleanClause.count('OR')
 
-    #counting number of operators 
-    for char in cleanClause:
-        if(char in LOGICAL_OPERATORS):
-            numOperators+=1
-
-    if(numConditions > 1 or numOperators > 2):
+    if(numConditions > 1):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
     if(numOperators == 1):
         global SINGLE_WHERE
