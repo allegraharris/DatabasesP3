@@ -55,7 +55,7 @@ class Table:
     ### add column, primary key, or foreign key ###
     ### attribute is the raw input, e.g: net_id INT, PRIMARY KEY (net_id), PRIMARY KEY ()
     def add_attribute(self,attribute):
-        tokens = [token for token in re.split(r'\s+|([a-zA-Z_]+)|(\([^)]+\))',attribute) if token]
+        tokens = [token for token in re.split(r'(\w+|\([^)]*\))',attribute) if token.strip()]
         # print(tokens)
         if tokens[0] == 'PRIMARY': # primary key definition
             if len(tokens) != 3 or tokens[1].upper() != 'KEY':
@@ -66,7 +66,7 @@ class Table:
             return
         
         if tokens[0] == 'FOREIGN': # foreign key definition
-            if len(tokens) != 6 or tokens[1] != 'KEY' or tokens[3].upper() != 'REFERENCES': # check syntax error
+            if len(tokens) != 6 or tokens[1].upper() != 'KEY' or tokens[3].upper() != 'REFERENCES': # check syntax error
                 raise Syntax_Error("Syntax Error: Foreign Key")
             if tokens[4] not in databases: # check existence of referencing table
                 raise Not_Exist(f"Referenced Table {tokens[4]} not in database")
