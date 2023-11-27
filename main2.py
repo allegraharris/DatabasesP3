@@ -548,6 +548,16 @@ def validateExecute(tokens):
 ### SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
 
+def validateColumns(column,table_name):
+    if column == '*':
+        return column
+    columns = [token.strip() for token in column.split(',') if token]
+    print(columns)
+    for col in columns:
+        if col not in databases[table_name].column_data:
+            raise Not_Exist(f"Column {column} does not exist")
+    return column
+
 def validateSelect(tokens): 
     global AGGREGATE
     length = len(tokens)
@@ -562,17 +572,17 @@ def validateSelect(tokens):
     # check if table exist
     if tokens[4] not in databases:
         raise Not_Exist(f"Table {tokens[4]} does not exist")
-    
 
     ## No Join
     if length == 5:
-
         if '(' in tokens[1]:
             if ')' in tokens[1]:
                 validateAggregateFunction(tokens[1])
-
             else:
                 raise Syntax_Error("Syntax Error: Aggregate function has no closing parentheses")
+        else:
+            simple_select(validateColumns(tokens[1],tokens[4]),tokens[4])
+            return
         
         
 
