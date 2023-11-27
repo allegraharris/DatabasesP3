@@ -559,8 +559,14 @@ def validateSelect(tokens):
     if(length < 5 or query_tokens[2] != 'FROM'):
         raise Syntax_Error("Syntax Error: invalid select")
     
+    # check if table exist
+    if tokens[4] not in databases:
+        raise Not_Exist(f"Table {tokens[4]} does not exist")
+    
+
     ## No Join
     if length == 5:
+
         if '(' in tokens[1]:
             if ')' in tokens[1]:
                 validateAggregateFunction(tokens[1])
