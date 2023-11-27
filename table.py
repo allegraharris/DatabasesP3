@@ -222,6 +222,16 @@ class Table:
             tuples.append(tuple)
         print(tb(tuples,headers,tablefmt='outline'))
 
+    def single_where(self,column,optr,value):
+        if optr == '=':
+            key = set()
+            if column in self.pri_keys and len(self.pri_keys) == 1:
+                key.add(value)
+                key = frozenset(key)
+                if ()
+
+                
+
 
     def copyColumns(self, tempTable, newColumns, conditions, single):
         #arguments:
