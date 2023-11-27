@@ -38,6 +38,7 @@ from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, 
 
 keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE']
 sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT','EXECUTE']
+Aggregate = ['MAX','MIN']
 LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
 STRING_OPERATORS = ['=', '!=']
 datatype = ['INT','STRING']
@@ -170,6 +171,13 @@ def simple_select(cols,table):
     table.print_internal_select(cols)
     return
 
+def aggregate_select(func,table):
+    output_table = Table()
+    if func[0].upper() == 'MAX':
+        output_table = table.max2(func[1])
+    elif func[0].upper() == 'MIN':
+        output_table = table.min2(func[1])
+    output_table.print_internal()
 
 def eval_query():
     optr = query_tokens[0]
@@ -584,13 +592,16 @@ def validateSelect(tokens):
 
     ## No Join
     if length == 5:
+        table = databases[tokens[3]]
         if '(' in tokens[1]:
             if ')' in tokens[1]:
-                validateAggregateFunction(tokens[1])
+                func = validateAggregateFunction(tokens[1],tokens[3])
+                aggregate_select(func,table)
+                return
             else:
                 raise Syntax_Error("Syntax Error: Aggregate function has no closing parentheses")
         else:
-            simple_select(validateColumns(tokens[1],tokens[3]),databases[tokens[3]])
+            simple_select(validateColumns(tokens[1],tokens[3]),table)
             return
 
     #Either a join or selecting from many tables
@@ -853,59 +864,64 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         
     return True
     
-def validateAggregateFunction(token):
-    table_name = ''
-    from_table_name = ''
-    column_name = ''
-    pattern = r'^max\(([^)]+)\)$'
+def validateAggregateFunction(func,table_name):
+    # table_name = ''
+    # from_table_name = ''
+    # column_name = ''
+    pattern = r'(\w+|\([^)]*\))'
 
     #multiple columns can't be selected with an aggregate function
-    if(',' in token):
+    if(',' in func):
         raise Unsupported_Functionality('Unsupported Functionality: cannot select multiple attributes when using an aggregate function') 
 
-    match = re.match(pattern, query_tokens[1].strip())
-
-    if(match):
-        #if specifying table name
-        if('.' in match.group(1)):
-            table_name, column_name = match.group(1).strip().split('.')
-        else:
-            column_name = match.group(1)
-    else:
-       raise Syntax_Error('Syntax Error or Unsupported Aggregate Function: ' + query_tokens[1])
-
-    if(query_tokens[2] != 'FROM'):
-        raise Syntax_Error('Syntax Error: ' + query_tokens[2])
+    tokens = [token for token in re.split(pattern,func) if token.strip()]
+    if tokens[0].upper() not in Aggregate:
+        raise Unsupported_Functionality('Unsupported Functionality: cannot select multiple attributes when using an aggregate function') 
+    tokens[1] = tokens[1][1:len(tokens[1])-1]
     
-    if(',' in query_tokens[3]):
-        raise Unsupported_Functionality('Unsupported Functionality: cannot select from multiple tables with an aggregate function')
-    else: 
-        from_table_name = query_tokens[3]
+    validateColumns(tokens[1],table_name)
+    return tokens
 
-    if(table_name == ''):
-        if(from_table_name not in databases):
-            raise Not_Exist('HERE 1: Table does not exist')
-        if(column_name not in databases[from_table_name].column_data):
-            raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
-    else: 
-        if(table_name != from_table_name):
-            raise Syntax_Error('Syntax Error: Cannot select from a table that is not specified')
-        else:
-            if(table_name not in databases):
-                raise Not_Exist('HERE 2: Table does not exist')
-            if(column_name not in databases[table_name].column_data):
-                raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
-    
-    if(databases[from_table_name].column_data[column_name][0] != 'INT'):
-        raise Unsupported_Functionality('Unsupported Functionality: max(column) only supported for integer types')
+    # match = re.match(pattern, query_tokens[1].strip())
+    # if(match):
+    #     #if specifying table name
+    #     if('.' in match.group(1)):
+    #         table_name, column_name = match.group(1).strip().split('.')
+    #     else:
+    #         column_name = match.group(1)
+    # else:
+    #    raise Syntax_Error('Syntax Error or Unsupported Aggregate Function: ' + query_tokens[1])
 
-    if(len(query_tokens) >= 5):
-        if(query_tokens[4].startswith('WHERE')):
-            validateWhere([], from_table_name, query_tokens[4], False)
-        elif(query_tokens[4] != ';'):
-            raise Syntax_Error('Syntax Error: ' + query_tokens[4])
+    # if(query_tokens[2] != 'FROM'):
+    #     raise Syntax_Error('Syntax Error: ' + query_tokens[2])
     
-    return True
+    # if(',' in query_tokens[3]):
+    #     raise Unsupported_Functionality('Unsupported Functionality: cannot select from multiple tables with an aggregate function')
+    # else: 
+    #     from_table_name = query_tokens[3]
+
+    # if(table_name == ''):
+    #     if(from_table_name not in databases):
+    #         raise Not_Exist('HERE 1: Table does not exist')
+    #     if(column_name not in databases[from_table_name].column_data):
+    #         raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
+    # else: 
+    #     if(table_name != from_table_name):
+    #         raise Syntax_Error('Syntax Error: Cannot select from a table that is not specified')
+    #     else:
+    #         if(table_name not in databases):
+    #             raise Not_Exist('HERE 2: Table does not exist')
+    #         if(column_name not in databases[table_name].column_data):
+    #             raise Syntax_Error('Syntax Error: Column ' + column_name + ' does not exist')
+    
+    # if(databases[from_table_name].column_data[column_name][0] != 'INT'):
+    #     raise Unsupported_Functionality('Unsupported Functionality: max(column) only supported for integer types')
+
+    # if(len(query_tokens) >= 5):
+    #     if(query_tokens[4].startswith('WHERE')):
+    #         validateWhere([], from_table_name, query_tokens[4], False)
+    #     elif(query_tokens[4] != ';'):
+    #         raise Syntax_Error('Syntax Error: ' + query_tokens[4])
 
 
 ### END OF SELECTION VALIDATION FUNCTIONS ###
@@ -939,7 +955,7 @@ while quitting == False:
         readInput()
         filter()
         # print(sql_query)
-        # print(query_tokens)
+        print(query_tokens)
         if query_tokens[0] == "quit":
             break
         start_time = time.time()

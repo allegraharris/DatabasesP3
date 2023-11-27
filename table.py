@@ -8,6 +8,7 @@ class Table {
 databases = {} # global variable database that stores all of the tables
 
 INT_MIN = -2147483647
+INT_MAX = 2147483648
 JOIN_KEY = 0
 
 import re
@@ -188,21 +189,22 @@ class Table:
         print(tb(tuples, headers, tablefmt='outline'))
         return
     
-        def print_internal_select(self,column):
-            if self.size == 0:
-                print("<Empty Set>")
-                return
-            columns = [token.strip() for token in column.split(',') if token]
-            print(columns)
-            headers = columns
-            tuples = []
-            for key in self.indexing.keys():
-                tuple = []
-                for column in headers:
-                    tuple.append(self.indexing[key][column])
-                tuples.append(tuple)
-            print(tb(tuples, headers, tablefmt='outline'))
-            print(f"{self.size} rows in set")
+    def print_internal_select(self,column):
+        if self.size == 0:
+            print("<Empty Set>")
+            return
+        columns = [token.strip() for token in column.split(',') if token]
+        print(columns)
+        headers = columns
+        tuples = []
+        for key in self.indexing.keys():
+            tuple = []
+            for column in headers:
+                tuple.append(self.indexing[key][column])
+            tuples.append(tuple)
+        print(tb(tuples, headers, tablefmt='outline'))
+        print(f"{self.size} rows in set")
+        return
 
     def describe(self):
         headers = ['Field','Type','KEY']
@@ -292,6 +294,41 @@ class Table:
             tempTable.columns = list(newColumns)    
 
         return tempTable
+    
+    def max2(self,column):
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take max of a string column')
+        max_column = f"max({column})"
+        max_table = Table()
+        max_table.columns.append(max_column)
+        max_value = INT_MIN
+        max_table.size = 1
+        if (self.size == 0):
+            max_value = 'NULL'
+        else:
+            for key in self.indexing.keys():
+                if self.indexing[key][column] > max_value:
+                    max_value = self.indexing[key][column]
+        max_table.indexing[0] = {max_column:max_value}
+        return max_table
+    
+    def min2(self,column):
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take min of a string column')
+        min_column = f"min({column})"
+        min_table = Table()
+        min_table.columns.append(min_column)
+        min_value = INT_MAX
+        min_table.size = 1
+        if (self.size == 0):
+            min_value = 'NULL'
+        else:
+            for key in self.indexing.keys():
+                if self.indexing[key][column] < min_value:
+                    min_value = self.indexing[key][column]
+        min_table.indexing[0] = {min_column:min_value}
+        return min_table
+        
     
     def max(self, column, conditions, single):
         max = INT_MIN

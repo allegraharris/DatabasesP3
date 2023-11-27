@@ -19,3 +19,6 @@ INSERT INTO employees()
 
 insert into departments(dep_id, dep_name) values (6,'econ');
 select * from departments;
+select max(dep_id) from departments;
+select min(dep_id) from departments;
+
