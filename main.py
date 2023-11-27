@@ -356,10 +356,7 @@ def select():
                     print(condition)
 
                 conditions[0] = conditions[0].split('.')
-
                 conditions[4] = conditions[4].split('.')
-
-
 
                 if('.' in conditions[2] and '.' in conditions[6]):
                     conditions[2] = conditions[2].split('.')
@@ -463,15 +460,14 @@ def select():
             
 
                 #Variable
-                #if('.' in conditions[2]):
-                    #conditions[2] = conditions[2].split('.')
-                    #tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1, conditions, False, False)
-                #Constant 
-                #else:
-                    #tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1, conditions, True, False)
+                if('.' in conditions[2]):
+                    conditions[2] = conditions[2].split('.')
+                    tempTable = databases[right[0]].mergeScan(databases[left[0]], columns, joinConditions, right[0], left[0], 1, conditions, False, False)
+                else:
+                    tempTable = databases[right[0]].mergeScan(databases[left[0]], columns, joinConditions, right[0], left[0], 1, conditions, True, False)
 
             else:
-                tempTable = databases[right[0]].mergeScan(databases[left[0]], columns, joinConditions, right[0], left[0])
+                tempTable = databases[right[0]].mergeScan(databases[left[0]], columns, joinConditions, right[0], left[0], 0, [], False, False)
 
             tempTable.print_internal()
 

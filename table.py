@@ -903,8 +903,54 @@ class Table:
         JOIN_KEY += 1
 
         self.columns = join_columns
+    
+    def mergeScanHelper(tempTable, sorted_self, sorted_table, i, j, columns, self_column_names, table_column_names, self_name, table_name):
+        k = l = 0
+        while k < len(sorted_self) and l < len(sorted_table):
+            if sorted_self[k][i] == sorted_table[l][j]:
+                tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
+                k += 1
+                l += 1
+            elif sorted_self[k][i] < sorted_table[l][j]:
+                k += 1
+            else:
+                l += 1
 
-    def mergeScan(self, table, columns, joinConditions, self_name, table_name):
+    def mergeScanHelperSingle(self, tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant):
+
+        if(constant):
+            condition_column = conditions[0][1]
+        
+            if(conditions[0][0] == self_name):
+                condition_index = self_column_names.index(condition_column)
+                k = l = 0
+                while k < len(sorted_self) and l < len(sorted_table):
+                    if sorted_self[k][i] == sorted_table[l][j]:
+                        condition_value = sorted_self[k][condition_index]
+                        if(evaluateCondition(condition_value, conditions[1], conditions[2])):
+                            tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
+                        k += 1
+                        l += 1
+                    elif sorted_self[k][i] < sorted_table[l][j]:
+                        k += 1
+                    else:
+                        l += 1
+            else:
+                condition_index = table_column_names.index(condition_column)
+                k = l = 0
+                while k < len(sorted_self) and l < len(sorted_table):
+                    if sorted_self[k][i] == sorted_table[l][j]:
+                        condition_value = sorted_table[l][condition_index]
+                        if(evaluateCondition(condition_value, conditions[1], conditions[2])):
+                            tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
+                        k += 1
+                        l += 1
+                    elif sorted_self[k][i] < sorted_table[l][j]:
+                        k += 1
+                    else:
+                        l += 1
+
+    def mergeScan(self, table, columns, joinConditions, self_name, table_name, single, conditions, constant, constant2):
         #columns[0] = self, columns[1] = table
 
         self_column_names = []
@@ -942,20 +988,16 @@ class Table:
 
         sorted_self = sorted(self_list, key=lambda x: x[i])
         sorted_table = sorted(table_list, key=lambda x: x[j])
-
-        k = l = 0
-
-        while k < len(sorted_self) and l < len(sorted_table):
-            if sorted_self[k][i] == sorted_table[l][j]:
-                tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                k += 1
-                l += 1
-            elif sorted_self[k][i] < sorted_table[l][j]:
-                k += 1
-            else:
-                l += 1
+        
+        if(single == 0):
+            self.mergeScanHelper(tempTable, sorted_self, sorted_table, i, j, columns, self_column_names, table_column_names, self_name, table_name)
+        elif(single == 1):
+            self.mergeScanHelperSingle(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
+                
                 
         return tempTable 
+    
+
 
     def addRow(self, inner_dict, inner_dict2, columns, self_name, table_name):
         #columns[0] = self.columns, columns[1] = table.columns
