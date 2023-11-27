@@ -189,8 +189,8 @@ def eval_query():
         execute(filename)
         return
     elif optr == 'SELECT':
-        if(validateSelect()):
-            select()
+        validateSelect(query_tokens)
+            # select()
         return
     raise Syntax_Error("Unknown SQL Command")
 
@@ -514,18 +514,19 @@ def validateInsert(tokens):
         raise Syntax_Error("Syntax Error: INSERT")
     # Parse Table if it has ()
     insert_info = [token for token in re.split(r'(\w+|\([^)]*\))',tokens[2]) if token.strip()]
-    if len(insert_info) != 2:
+    if len(insert_info) > 2:
         raise Syntax_Error("Syntax Error: INSERT[2]")
     table_name = insert_info[0]
     if table_name not in databases:
-        raise Not_Exist(f"Table {table_name} does not exist")
-    columns = insert_info[1][1:len(insert_info)-1].strip()
-    columns = [token.strip() for token in re.split(r',', columns) if token.strip()]
-    # print(columns)
-    if len(columns) != 0:
-        for i in range (0,len(columns)):
-            if columns[i] != databases[table_name].columns[i]:
-                raise Syntax_Error("Syntax Error: INSERT Columns does not match")
+        raise Not_Exist(f"Table {table_name} does not existed")
+    if len(insert_info) == 2:
+        # print(insert_info)
+        column = insert_info[1][1:len(insert_info[1])-1].strip()
+        columns = [token.strip() for token in re.split(r',', column) if token.strip()]
+        if len(columns) != 0:
+            for i in range (0,len(columns)):
+                if columns[i] != databases[table_name].columns[i]:
+                    raise Syntax_Error("Syntax Error,INSERT: columns does not match")
     if tokens[3] == 'VALUES':
         raise Syntax_Error("Syntax Error: Empty VALUES, no tuples inserted")
     return table_name
@@ -547,16 +548,30 @@ def validateExecute(tokens):
 ### SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
 
-def validateSelect(): 
+def validateSelect(tokens): 
     global AGGREGATE
-    length = len(query_tokens)
+    length = len(tokens)
     select_columns = []
     table_name = ''
     wildcardFlag = False
 
     #Must have at least basic format of SELECT x FROM table
-    if(length < 4 or query_tokens[2] != 'FROM'):
+    if(length < 5 or query_tokens[2] != 'FROM'):
         raise Syntax_Error("Syntax Error: invalid select")
+    
+    ## No Join
+    if length == 5:
+        if '(' in tokens[1]:
+            if ')' in tokens[1]:
+                validateAggregateFunction(tokens[1])
+
+            else:
+                raise Syntax_Error("Syntax Error: Aggregate function has no closing parentheses")
+        
+        
+
+    
+
 
     #Either a join or selecting from many tables
     if('.' in query_tokens[1]):
@@ -818,14 +833,14 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         
     return True
     
-def validateAggregateFunction():
+def validateAggregateFunction(token):
     table_name = ''
     from_table_name = ''
     column_name = ''
     pattern = r'^max\(([^)]+)\)$'
 
     #multiple columns can't be selected with an aggregate function
-    if(',' in query_tokens[1]):
+    if(',' in token):
         raise Unsupported_Functionality('Unsupported Functionality: cannot select multiple attributes when using an aggregate function') 
 
     match = re.match(pattern, query_tokens[1].strip())
