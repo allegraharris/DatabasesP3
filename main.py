@@ -440,8 +440,9 @@ def select():
             tempTable.print_internal()
 
         else:
-
-            if(SIMPLE_WILDCARD == False):
+            if(SIMPLE_WILDCARD):
+                columns = [databases[right[0]].columns, databases[left[0]].columns]
+            else:
                 for table, cols in table_column_dict.items():
                     if(table == left[0]):
                         columns[0] = cols
@@ -470,12 +471,9 @@ def select():
                     #tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1, conditions, True, False)
 
             else:
-                tempTable = databases[left[0]].mergeScan(databases[right[0]], columns, joinConditions)
+                tempTable = databases[right[0]].mergeScan(databases[left[0]], columns, joinConditions, right[0], left[0])
 
-            #tempTable.print_internal()
-
-            #tempTable = databases[left[0]].mergeScan(databases[right[0]], columns, joinConditions)
-            #tempTable.print_internal()
+            tempTable.print_internal()
 
     nullify()
 
@@ -787,10 +785,10 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 
     if(numConditions > 1):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
-    if(numOperators == 1):
+    if(numConditions == 0):
         global SINGLE_WHERE
         SINGLE_WHERE = True
-    elif(numOperators == 2):
+    else:
         global DOUBLE_WHERE
         DOUBLE_WHERE = True
     
