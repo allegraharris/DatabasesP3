@@ -347,13 +347,19 @@ def select():
             elif(DOUBLE_WHERE):
                 numChars = len(query_tokens[8])
                 cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
-                
-                pattern = fr"(\w+\.\w+)\s+({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s+(\S+)"
-                conditions = re.split(pattern, cleanClause)         
-                conditions = [value.strip() for value in conditions if value.strip()]
+
+                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*('[^']*'|\d+)\s*(AND|OR)?"
+                matches = re.findall(pattern, cleanClause)
+                conditions = [item.strip() for match in matches for item in match]
+
+                for condition in conditions: 
+                    print(condition)
 
                 conditions[0] = conditions[0].split('.')
+
                 conditions[4] = conditions[4].split('.')
+
+
 
                 if('.' in conditions[2] and '.' in conditions[6]):
                     conditions[2] = conditions[2].split('.')
@@ -368,7 +374,7 @@ def select():
                 elif('.' not in conditions[2] and '.' not in conditions[6]):
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, True)
             else:
-                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 0, conditions, False, False)
+                tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 0, [], False, False)
 
             tempTable.print_internal()
 
@@ -390,7 +396,7 @@ def select():
                 numChars = len(query_tokens[8])
                 cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
 
-                pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
+                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*('[^']*'|\d+)\s*(AND|OR)?"
                 conditions = re.split(pattern, cleanClause)         
                 conditions = [value.strip() for value in conditions if value.strip()]
 
@@ -408,9 +414,9 @@ def select():
                 numChars = len(query_tokens[8])
                 cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
 
-                pattern = fr"(\w+\.\w+)\s+({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s+(\S+)"
-                conditions = re.split(pattern, cleanClause)         
-                conditions = [value.strip() for value in conditions if value.strip()]
+                pattern = fr"(\w+\.\w+)\s*({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})\s*('[^']*'|\d+)"
+                matches = re.findall(pattern, cleanClause)
+                conditions = [item.strip() for match in matches for item in match]
 
                 conditions[0] = conditions[0].split('.')
                 conditions[4] = conditions[4].split('.')
@@ -429,7 +435,7 @@ def select():
                     tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 2, conditions, True, True)
 
             else: 
-                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 0)
+                tempTable = databases[right[0]].nestedLoop(databases[left[0]], columns, joinConditions, right[0], left[0], 0, [], False, False)
 
             tempTable.print_internal()
 
@@ -444,8 +450,32 @@ def select():
 
             joinConditions = [left, right]
 
-            tempTable = databases[left[0]].mergeScan(databases[right[0]], columns, joinConditions)
-            tempTable.print_internal()
+            if(SINGLE_WHERE):
+                numChars = len(query_tokens[8])
+                cleanClause = query_tokens[8][6:numChars-1] #removing where and semi-colon
+
+                pattern = fr"({'|'.join(re.escape(op) for op in LOGICAL_OPERATORS)})"
+                conditions = re.split(pattern, cleanClause)         
+                conditions = [value.strip() for value in conditions if value.strip()]
+
+                conditions[0] = conditions[0].split('.')
+            
+
+                #Variable
+                #if('.' in conditions[2]):
+                    #conditions[2] = conditions[2].split('.')
+                    #tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1, conditions, False, False)
+                #Constant 
+                #else:
+                    #tempTable = databases[left[0]].nestedLoop(databases[right[0]], columns, joinConditions, left[0], right[0], 1, conditions, True, False)
+
+            else:
+                tempTable = databases[left[0]].mergeScan(databases[right[0]], columns, joinConditions)
+
+            #tempTable.print_internal()
+
+            #tempTable = databases[left[0]].mergeScan(databases[right[0]], columns, joinConditions)
+            #tempTable.print_internal()
 
     nullify()
 
@@ -755,12 +785,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
     #counting number of conidtions
     numConditions = cleanClause.count('AND') + cleanClause.count('OR')
 
-    #counting number of operators 
-    for char in cleanClause:
-        if(char in LOGICAL_OPERATORS):
-            numOperators+=1
-
-    if(numConditions > 1 or numOperators > 2):
+    if(numConditions > 1):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
     if(numOperators == 1):
         global SINGLE_WHERE
