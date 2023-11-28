@@ -1658,9 +1658,9 @@ class Table:
             self.mergeScanHelperSingle(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
         elif(single == 2):
             if(conditions[3] == 'AND'):
-                self.mergeScanHelperAnd(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
+                self.mergeScanHelperAnd(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2)
             else:
-                self.mergeScanHelperOr(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
+                self.mergeScanHelperOr(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2)
    
                 
         return tempTable 
