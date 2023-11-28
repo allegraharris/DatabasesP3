@@ -5,4 +5,8 @@ INSERT INTO rel4 () VALUES (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1
 select * from rel1 join rel2 on rel1.col1 = rel2.col1;
 select * from rel2 join rel3 on rel2.col2 = rel3.col2;
 select * from rel1 join rel2 on rel2.col1 = rel1.col1;
-select * from rel2 join rel3 on rel2.col2 = rel3.col2;
+select * from rel2 join rel3 on rel2.col2=rel3.col2;
+select * from rel1 join rel2 on rel1.col1 = rel2.col1 where rel1.col1 = 500 and rel1.col2 <= 500;
+select * from rel3 join rel4 on rel3.col2 = rel4.col2;
+select * from rel3 join rel4 on rel3.col1 = rel4.col1;
+select * from rel1 join rel2 on rel1.col1 = rel2.col1 where rel1.col1 = 500 and rel1.col2 = rel2.col2;

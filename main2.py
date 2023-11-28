@@ -347,11 +347,7 @@ def validateJoinColumns(column,tables):
     return column
 
 def validateSelect(tokens): 
-    global AGGREGATE
     length = len(tokens)
-    select_columns = []
-    table_name = ''
-    wildcardFlag = False
 
     #Must have at least basic format of SELECT x FROM table
     if(length < 5 or query_tokens[2] != 'FROM'):
@@ -395,35 +391,29 @@ def validateSelect(tokens):
                 print(cols)
         else:
             cols = validateJoinColumns(tokens[1],[tokens[3],tokens[5]])
-        # cols = validateJoinColumns(tokens[1],[tokens[3],tokens[5]])
         table = join(table_a,table_b,join_condition[0],join_condition[1])
-        if '(' in tokens[1]:
-            # print(func)
-            aggregate_select(cols,table)
-        else:
-            simple_select(cols,table)
-        return
         if tokens[8] == ';':
-            validateJoin(tokens)
-        table = validateJoin(tokens)
-        if tokens[8] == ';':
-            simple_select(tokens[1],table)
+            if '(' in tokens[1]:
+                # print(func)
+                aggregate_select(cols,table)
+            else:
+                simple_select(cols,table)
             return
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
             where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
-            print(where_tokens)
+            # print(where_tokens)
             if len(where_tokens) == 5:
                 table = single_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4]])
-                simple_select(tokens[1],table)
+                # simple_select(tokens[1],table)
             elif len(where_tokens) == 11:
                 table = double_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4],where_tokens[5],f"{where_tokens[6]}.{where_tokens[8]}",where_tokens[9],where_tokens[10]])
-                simple_select(tokens[1],table)
-            return
-        # validateJoin(tokens).print_internal_select(tokens[1])
-        return
-
-    
-    return True
+                # simple_select(tokens[1],table)
+        if '(' in tokens[1]:
+            aggregate_select(cols,table)
+        else:
+            simple_select(cols,table)
+        
+    return
     
 def validateJoin(tokens):
 
@@ -473,7 +463,7 @@ def validateJoin(tokens):
 def validateWhere(joining_tables, table_name, where_clause, join):
 
     numChars = len(where_clause)
-    numOperators = 0
+    # numOperators = 0
     numConditions = 0
     cols = []
 
@@ -484,12 +474,12 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 
     if(numConditions > 1):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
-    if(numOperators == 1):
-        global SINGLE_WHERE
-        SINGLE_WHERE = True
-    elif(numOperators == 2):
-        global DOUBLE_WHERE
-        DOUBLE_WHERE = True
+    # if(numOperators == 1):
+    #     global SINGLE_WHERE
+    #     SINGLE_WHERE = True
+    # elif(numOperators == 2):
+    #     global DOUBLE_WHERE
+    #     DOUBLE_WHERE = True
     
     if(join):
         #isolating column names using regex
@@ -518,7 +508,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         tokens = [token for token in re.findall(r'\b\w+\b|[=<>!ANDOR]+|.', cleanClause) if token.strip() and token.strip() != "'"]
         return tokens
         
-    return True
+    # return True
     
 def validateAggregateFunction(func,table_name):
     # table_name = ''
