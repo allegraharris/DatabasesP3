@@ -365,7 +365,7 @@ def validateSelect(tokens):
         table = databases[tokens[3]]
         if tokens[4] != ';' and tokens[4].startswith('WHERE'):
             where_tokens = validateWhere([],tokens[3],tokens[4],False)
-            print(where_tokens)
+            # print(where_tokens)
             if len(where_tokens) == 3:
                 table = single_where(table,where_tokens)
             if len(where_tokens) == 7:
@@ -403,7 +403,7 @@ def validateSelect(tokens):
             return
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
             where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
-            print(where_tokens)
+            # print(where_tokens)
             if len(where_tokens) == 5:
                 table = single_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4]])
                 # simple_select(tokens[1],table)

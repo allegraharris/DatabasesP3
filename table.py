@@ -17,7 +17,7 @@ from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 
 def evaluateCondition(value1, operator, value2):
-    print(value1,value2)
+    # print(value1,value2)
     # value2 = int(value2)
     if operator == '=':
         return value1 == value2
@@ -200,7 +200,7 @@ class Table:
             print("<Empty Set>")
             return
         columns = [token.strip() for token in column.split(',') if token]
-        print(columns)
+        # print(columns)
         headers = columns
         tuples = []
         for key in self.indexing.keys():
@@ -401,6 +401,6 @@ class Table:
                     self.size += 1
                     k += 1
                 i += 1
-        print(self.size)
+        # print(self.size)
         return self
 
