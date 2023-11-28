@@ -1270,7 +1270,7 @@ class Table:
                             else:
                                 if(condition_met == False):
                                     condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
+                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
                                     condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
 
                     if(condition_met):
