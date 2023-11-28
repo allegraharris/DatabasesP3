@@ -6,7 +6,7 @@ SELECT max(emp_id) FROM employees;
 
 SELECT * FROM employees WHERE emp_id >= 2370;
 
-SELECT * FROM departments WHERE dep_name = ‘css’ OR dep_name = 'physics';
+SELECT * FROM departments WHERE dep_name = 'css' OR dep_name = 'physics';
 
 SELECT * FROM employees JOIN departments ON employees.dep_id = departments.dep_id;
 
