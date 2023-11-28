@@ -1034,11 +1034,11 @@ class Table:
                     else:
                         if(conditions[2][0] == self_name):
                             condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
+                            condition_value_var = sorted_self[k][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
                         else:
                             condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
+                            condition_value_var = sorted_table[l][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
 
                         if(constant2):
@@ -1106,11 +1106,11 @@ class Table:
                     else:
                         if(conditions[2][0] == self_name):
                             condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
+                            condition_value_var = sorted_self[k][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
                         else:
                             condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
+                            condition_value_var = sorted_table[l][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
 
                         if(constant2):
@@ -1178,11 +1178,11 @@ class Table:
                     else:
                         if(conditions[2][0] == self_name):
                             condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
+                            condition_value_var = sorted_self[k][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
                         else:
                             condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
+                            condition_value_var = sorted_table[l][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
 
                         if(constant2):
@@ -1250,11 +1250,11 @@ class Table:
                     else:
                         if(conditions[2][0] == self_name):
                             condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
+                            condition_value_var = sorted_self[k][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
                         else:
                             condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
+                            condition_value_var = sorted_table[l][condition_var_index]
                             condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
 
                         if(constant2):
