@@ -365,9 +365,11 @@ def validateSelect(tokens):
         table = databases[tokens[3]]
         if tokens[4] != ';' and tokens[4].startswith('WHERE'):
             where_tokens = validateWhere([],tokens[3],tokens[4],False)
+            print(where_tokens)
             if len(where_tokens) == 3:
                 table = single_where(table,where_tokens)
             if len(where_tokens) == 7:
+                # print("entering this")
                 table = double_where(table,where_tokens)
         if '(' in tokens[1]:
             if ')' in tokens[1]:
@@ -388,7 +390,7 @@ def validateSelect(tokens):
         if '(' in tokens[1]:
             if ')' in tokens[1]:
                 cols = validateAggregateFunction(tokens[1],[tokens[3],tokens[5]])
-                print(cols)
+                # print(cols)
         else:
             cols = validateJoinColumns(tokens[1],[tokens[3],tokens[5]])
         table = join(table_a,table_b,join_condition[0],join_condition[1])
@@ -401,7 +403,7 @@ def validateSelect(tokens):
             return
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
             where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
-            # print(where_tokens)
+            print(where_tokens)
             if len(where_tokens) == 5:
                 table = single_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4]])
                 # simple_select(tokens[1],table)
@@ -485,8 +487,8 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         #isolating column names using regex
         pattern = r'(\w+)\.(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
         tables_and_columns = re.findall(pattern, cleanClause)
-        tokens = [token for token in re.findall(r'\b\w+\b|[=<>!ANDOR]+|.', cleanClause) if token.strip() and token.strip() != "'"]
-        print(tables_and_columns)
+        tokens = [token.strip("'") for token in re.findall(r"\b\w+\b|[=<>!ANDOR]+|'[^']*'|.", cleanClause) if token.strip()]
+        # print(tables_and_columns)
         # print(tokens)
 
         for pair in tables_and_columns:
@@ -505,7 +507,7 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         for col in cols:
             if(col not in databases[table_name].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + col + ' does not exist')
-        tokens = [token for token in re.findall(r'\b\w+\b|[=<>!ANDOR]+|.', cleanClause) if token.strip() and token.strip() != "'"]
+        tokens = [token.strip("'") for token in re.findall(r"\b\w+\b|[=<>!ANDOR]+|'[^']*'|.", cleanClause) if token.strip()]
         return tokens
         
     # return True
@@ -537,24 +539,6 @@ def validateAggregateFunction(func,table_name):
 ### END OF SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
 
-### HELPER FUNCTIONS ###
-#------------------------------------------------------------------------------#
-
-def nullify():
-    global SIMPLE_SELECT
-    global SIMPLE_WILDCARD
-    global AGGREGATE
-    global SINGLE_WHERE
-    global DOUBLE_WHERE
-    global JOIN
-
-    SIMPLE_SELECT = False
-    SIMPLE_WILDCARD = False 
-    AGGREGATE = False
-    SINGLE_WHERE = False 
-    DOUBLE_WHERE = False
-    JOIN = False
-
 ### END OF HELPER FUNCTIONS ###
 #------------------------------------------------------------------------------#
 
@@ -565,7 +549,7 @@ while quitting == False:
         readInput()
         filter()
         # print(sql_query)
-        print(query_tokens)
+        # print(query_tokens)
         if query_tokens[0] == "quit":
             break
         start_time = time.time()

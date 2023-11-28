@@ -17,6 +17,7 @@ from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 
 def evaluateCondition(value1, operator, value2):
+    print(value1,value2)
     # value2 = int(value2)
     if operator == '=':
         return value1 == value2
@@ -237,7 +238,8 @@ class Table:
             if key in self.indexing:
                 table.indexing[key] = self.indexing[key]
                 table.size += 1
-      
+
+
         else:
             for key in self.indexing.keys():
                 if evaluateCondition(self.indexing[key][column],optr,value):
@@ -307,7 +309,7 @@ class Table:
         if tab_1 == tab_2:
             raise Syntax_Error("Equal Join within conditions in one table is stupid")
         if tab_1 == table_2.name:
-            print("swap")
+            # print("swap")
             return self.join_tables(table_1,table_2,tab_2,col_2,tab_1,col_1)
         table = Table()
         table_name_1 = table_1.name
