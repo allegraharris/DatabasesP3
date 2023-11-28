@@ -12,7 +12,7 @@ create table employees (
 );
 
 INSERT INTO departments() 
-    VALUES (1,'chem'), (2,'math'), (3,'cs'), (4,'physics'), (5,'biology');
+    VALUES (1,'chem'), (2,'math'), (5,'cs'), (4,'physics'), (3,'biology');
 
 INSERT INTO employees() 
     VALUES (822278827,'charlie mei',3), (235123,'allegra harris',2), (2358437820,'sarah green',4);
