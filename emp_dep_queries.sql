@@ -2,7 +2,13 @@ SELECT * FROM departments;
 
 SELECT * FROM employees;
 
-SELECT max(emp_id) FROM employees;
+SELECT MAX(emp_id) FROM employees;
+
+SELECT MIN(emp_id) FROM employees;
+
+SELECT AVG(emp_id) FROM employees;
+
+SELECT SUM(emp_id) FROM employees;
 
 SELECT * FROM employees WHERE emp_id >= 2370;
 
@@ -23,6 +29,12 @@ SELECT * FROM employees JOIN departments ON employees.dep_id = departments.dep_i
 CREATE TABLE course (course_num INT, yr INT, emp_id INT, primary key (course_num, yr), foreign key (emp_id) references employees(emp_id));
 
 INSERT INTO course VALUES (1020, 1990, 8227), (1020, 2000, 2370), (2730, 2000, 2353);
+
+INSERT INTO course VALUES (2730, 2020, 2353);
+
+INSERT INTO course VALUES (2730, 2020, 8765);
+
+INSERT INTO course VALUES (2730, 2010, 8770);
 
 SELECT * FROM course;
 
