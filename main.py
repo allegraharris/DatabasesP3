@@ -712,7 +712,7 @@ def validateJoin():
 
     for pair in joinPairs:
         table, column = pair.strip().split('.')
-        print("Table: " + table + " Column: " + column)
+        # print("Table: " + table + " Column: " + column)
         
         if(table not in joining_tables):
             raise Syntax_Error('Syntax Error: Invalid join syntax')
