@@ -330,9 +330,9 @@ class Table:
             table.size = len(table.indexing)
             return table
             
-
-    
-    def max2(self,column):
+    def max(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take max of a multiple columns')
         if(self.column_data[column][0] == 'STRING'):
             raise Syntax_Error('Cannot take max of a string column')
         max_column = f"max({column})"
@@ -349,7 +349,9 @@ class Table:
         max_table.indexing[0] = {max_column:max_value}
         return max_table
     
-    def min2(self,column):
+    def min(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take min of a multiple columns')
         if(self.column_data[column][0] == 'STRING'):
             raise Syntax_Error('Cannot take min of a string column')
         min_column = f"min({column})"
@@ -365,6 +367,44 @@ class Table:
                     min_value = self.indexing[key][column]
         min_table.indexing[0] = {min_column:min_value}
         return min_table
+    
+    def avg(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take avg of a multiple columns')
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take avg of a string column')
+        avg_column = f"avg({column})"
+        avg_table = Table()
+        avg_table.columns.append(avg_column)
+        sum_value = 0
+        avg_value = 0
+        avg_table.size = 1
+        if (self.size == 0):
+            avg_value = 'NULL'
+        else:
+            for key in self.indexing.keys():
+                sum_value += self.indexing[key][column]
+            avg_value = float(sum_value/self.size)
+        avg_table.indexing[0] = {avg_column:avg_value}
+        return avg_table
+    
+    def sum(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take sum of a multiple columns')
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take avg of a string column')
+        sum_column = f"sum({column})"
+        sum_table = Table()
+        sum_table.columns.append(sum_column)
+        sum_value = 0
+        sum_table.size = 1
+        if (self.size == 0):
+            sum_value = 'NULL'
+        else:
+            for key in self.indexing.keys():
+                sum_value += self.indexing[key][column]
+        sum_table.indexing[0] = {sum_column:sum_value}
+        return sum_table
     
     def join_tables(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
         # swap join condition if 

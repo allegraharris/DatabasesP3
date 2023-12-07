@@ -1,5 +1,3 @@
-# databases = {}
-
 import sqlparse
 import re
 from tabulate import tabulate as tb
@@ -8,7 +6,7 @@ from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, 
 
 keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE','ON']
 sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT','EXECUTE']
-Aggregate = ['MAX','MIN']
+Aggregate = ['MAX','MIN','AVG','SUM']
 LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
 STRING_OPERATORS = ['=', '!=']
 datatype = ['INT','STRING']
@@ -127,7 +125,6 @@ def execute(filename):
     return
 
 def simple_select(cols,table):
-    # print(cols)
     if cols == '*':
         table.print_internal()
         return
@@ -137,9 +134,13 @@ def simple_select(cols,table):
 def aggregate_select(func,table):
     output_table = Table()
     if func[0].upper() == 'MAX':
-        output_table = table.max2(func[1])
+        output_table = table.max(func[1])
     elif func[0].upper() == 'MIN':
-        output_table = table.min2(func[1])
+        output_table = table.min(func[1])
+    elif func[0].upper() == 'AVG':
+        output_table = table.avg(func[1])
+    elif func[0].upper() == 'SUM':
+        output_table = table.sum(func[1])
     output_table.print_internal()
 
 def single_where(table,where_tokens):
@@ -274,10 +275,8 @@ def validateTableInput(cols_data):
 
 # 2. Validate Insert
 def validateInsert(tokens):
-    # Basic Syntax Check
     if len(tokens) != 5 or tokens[1] != 'INTO':
         raise Syntax_Error("Syntax Error: INSERT")
-    # Parse Table if it has ()
     insert_info = [token for token in re.split(r'(\w+|\([^)]*\))',tokens[2]) if token.strip()]
     if len(insert_info) > 2:
         raise Syntax_Error("Syntax Error: INSERT[2]")
@@ -285,7 +284,6 @@ def validateInsert(tokens):
     if table_name not in databases:
         raise Not_Exist(f"Table {table_name} does not existed")
     if len(insert_info) == 2:
-        # print(insert_info)
         column = insert_info[1][1:len(insert_info[1])-1].strip()
         columns = [token.strip() for token in re.split(r',', column) if token.strip()]
         if len(columns) != 0:
@@ -317,7 +315,6 @@ def validateColumns(column,table_name):
     if column == '*':
         return column
     columns = [token.strip() for token in column.split(',') if token]
-    # print(columns)
     for col in columns:
         if col not in databases[table_name].column_data:
             raise Not_Exist(f"Column {column} does not exist")
@@ -351,7 +348,7 @@ def validateSelect(tokens):
         raise Unsupported_Functionality("Select from Multi Tables is not supported")
 
     if tokens[3] not in databases:
-        raise Not_Exist(f"Table {tokens[4]} does not exist")
+        raise Not_Exist(f"Table {tokens[3]} does not exist")
 
     ## No Join
     if length == 5:
@@ -385,7 +382,7 @@ def validateSelect(tokens):
         if '(' in tokens[1]:
             if ')' in tokens[1]:
                 cols = validateAggregateFunction(tokens[1],[tokens[3],tokens[5]])
-                # print(cols)
+
         else:
             cols = validateJoinColumns(tokens[1],[tokens[3],tokens[5]])
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
@@ -409,6 +406,7 @@ def validateSelect(tokens):
                             table_a = single_where(table_a,[col_1,optr,col_2])
                         if name_1 == tokens[5]:
                             table_b = single_where(table_b,[col_1,optr,col_2])
+
             if len(where_tokens) == 7:
                 name_1 = where_tokens[0].split('.')[0]
                 col_1 = where_tokens[0].split('.')[1]
@@ -495,7 +493,7 @@ def validateSelect(tokens):
                                 col_4 = val2.split('.')[1]
                                 if name_1 == name_3 and name_1 == name_4:
                                     table_b = double_where(table_b,[col_1,optr1,col_3,log,col_2,optr2,col_4])
-        print(table_a.size,table_b.size)
+
         table = join(table_a,table_b,join_condition[0],join_condition[1])
         if tokens[8] == ';':
             if '(' in tokens[1]:
@@ -504,15 +502,10 @@ def validateSelect(tokens):
                 simple_select(cols,table)
             return
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
-            # print(where_tokens)
             if len(where_tokens) == 3:
                 table = single_where(table,where_tokens)
-                # simple_select(tokens[1],table)
             elif len(where_tokens) == 7:
-                print(where_tokens)
                 table = double_where(table,where_tokens)
-                # simple_select(tokens[1],table)
-        print(table.size)
         if '(' in tokens[1]:
             aggregate_select(cols,table)
         else:
@@ -535,11 +528,17 @@ def validateJoin(tokens):
         raise Syntax_Error('Syntax Error: Invalid join syntax')
     if('=' not in tokens[7]):
         raise Syntax_Error('Syntax Error: Invalid join syntax, only support equal join')
+    if tokens[3] == tokens[5]:
+        raise Syntax_Error('Syntax Error: Should not run equal join on two table that are same')
 
     joining_tables = [tokens[3],tokens[5]]
             
     # validate the join condition
     joinPairs = [token.strip() for token in tokens[7].strip().split('=') if token.strip()]
+    if len(joinPairs) != 2:
+        raise Syntax_Error("Syntax Error: Join conditions different than 2")
+    if " " in joinPairs[1]:
+        raise Syntax_Error("Syntax Error: Join conditions different than 2")
 
     tabs = []
     cols = []
@@ -572,8 +571,6 @@ def validateWhere(joining_tables, table_name, where_clause, join):
     cols = []
 
     cleanClause = where_clause[6:numChars-1] #removing where and semi-colon
-
-    #counting number of conidtions
     numConditions = cleanClause.count('AND') + cleanClause.count('OR')
 
     if(numConditions > 1):
@@ -585,8 +582,6 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         tables_and_columns = re.findall(pattern, cleanClause)
         tokens = [item.strip() for item in re.split(r'\s*([=!<>]+|AND|OR)\s*', cleanClause) if item.strip()]
         tokens = [item.strip("'") for item in tokens]
-        print(tables_and_columns)
-        print(tokens)
 
         for pair in tables_and_columns:
             if(pair[0] not in databases):
@@ -601,23 +596,17 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         #isolating column names using regex
         pattern = r'\b(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
         cols = re.findall(pattern, cleanClause)
-        print(cleanClause)
-        print(cols)
+
         for col in cols:
             if(col not in databases[table_name].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + col + ' does not exist')
         tokens = [token.strip("'") for token in re.findall(r"\b\w+\b|[=<>!ANDOR]+|'[^']*'|.", cleanClause) if token.strip()]
-        
-        print(tokens)
         return tokens
-        
-    # return True
     
 def validateAggregateFunction(func,table_name):
 
     pattern = r'(\w+|\([^)]*\))'
 
-    #multiple columns can't be selected with an aggregate function
     if(',' in func):
         raise Unsupported_Functionality('Unsupported Functionality: cannot select multiple attributes when using an aggregate function') 
 
@@ -630,7 +619,6 @@ def validateAggregateFunction(func,table_name):
         validateColumns(tokens[1],table_name)
         return tokens
     
-    # table,column = tokens[1].strip().split('.')
     validateJoinColumns(tokens[1],table_name)
     return tokens
 
