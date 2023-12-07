@@ -5,43 +5,53 @@ class Table {
     keys = set() -> set that store the column names
 """
 
-databases = {} # global variable database that stores all of the tables
-
 INT_MIN = -2147483647
+INT_MAX = 2147483648
 JOIN_KEY = 0
+INCLUDE_OPERATOR = ['=','<=','>=']
 
+import time
 import re
 from BTrees._OOBTree import OOBTree
 from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
+start_time = time.time()
+end_time = time.time()
+databases = {} # global variable database that stores all of the tables
+
+def start():
+    global start_time
+    # print("start time")
+    start_time = time.time()
+
+def end():
+    global end_time
+    # print("end time")
+    end_time = time.time()
+
+def getTime():
+    print(f"Time: {end_time-start_time:.3f}s")
 
 def evaluateCondition(value1, operator, value2):
-        try:
-            value2 = int(value2)
-            if operator == '=':
-                return value1 == value2
-            elif operator == '!=':
-                return value1 != value2
-            elif operator == '>':
-                return value1 > value2
-            elif operator == '>=':
-                return value1 >= value2
-            elif operator == '<':
-                return value1 < value2
-            elif operator == '<=':
-                return value1 <= value2
-        except ValueError:
-            value2 = value2.replace("'", "")
-            if operator == '=':
-                return value1 == value2
-            elif operator == '!=':
-                return value1 != value2
-            else:
-                raise Syntax_Error('Syntax Error: can only use = or != on string type')
-                
-        return False
+    # print(value1,value2)
+    # value2 = int(value2)
+    if operator == '=':
+        return value1 == value2
+    elif operator == '!=':
+        return value1 != value2
+    elif operator == '>':
+        return value1 > value2
+    elif operator == '>=':
+        return value1 >= value2
+    elif operator == '<':
+        return value1 < value2
+    elif operator == '<=':
+        return value1 <= value2
+    return False
+
 class Table:
     def __init__(self):
+        self.name = str()
         self.columns = list()
         self.column_data = dict()
         self.pri_keys = set()
@@ -52,10 +62,22 @@ class Table:
         self.pri_lock = False # True for primary key defined, false not defined
         self.for_lock = False # True for primary key defined, false not defined
 
+    def copy(self,table):
+        self.name = table.name
+        self.columns = table.columns
+        self.column_data = table.column_data
+        self.pri_keys = table.pri_keys
+        self.for_keys = table.for_keys
+        self.ref_table = table.ref_table
+        self.indexing = dict()
+        self.size = 0
+        self.pri_lock = table.pri_lock # True for primary key defined, false not defined
+        self.for_lock = table.pri_lock # True for primary key defined, false not defined
+
     ### add column, primary key, or foreign key ###
     ### attribute is the raw input, e.g: net_id INT, PRIMARY KEY (net_id), PRIMARY KEY ()
     def add_attribute(self,attribute):
-        tokens = [token for token in re.split(r'\s+|([a-zA-Z_]+)|(\([^)]+\))',attribute) if token]
+        tokens = [token for token in re.split(r'(\w+|\([^)]*\))',attribute) if token.strip()]
         # print(tokens)
         if tokens[0] == 'PRIMARY': # primary key definition
             if len(tokens) != 3 or tokens[1].upper() != 'KEY':
@@ -66,7 +88,7 @@ class Table:
             return
         
         if tokens[0] == 'FOREIGN': # foreign key definition
-            if len(tokens) != 6 or tokens[1] != 'KEY' or tokens[3].upper() != 'REFERENCES': # check syntax error
+            if len(tokens) != 6 or tokens[1].upper() != 'KEY' or tokens[3].upper() != 'REFERENCES': # check syntax error
                 raise Syntax_Error("Syntax Error: Foreign Key")
             if tokens[4] not in databases: # check existence of referencing table
                 raise Not_Exist(f"Referenced Table {tokens[4]} not in database")
@@ -138,7 +160,6 @@ class Table:
 
     def add_tuples(self,tuples):
         tuples = [value.strip() for value in re.split(r',(?![^()]*\))',tuples)]
-        # print(tuples)
         for tuple in tuples:
             value = tuple[1:len(tuple)-1].strip()
             values = [token.strip() for token in re.split(r',', value) if token.strip()]
@@ -170,10 +191,12 @@ class Table:
                     raise Not_Exist(f"Constriant by Foreign Key from Table {self.ref_table}")
             self.indexing[frozenset(primary_keys)] = new_tuple
             self.size += 1
+        end()
         return
 
     def print_internal(self):
         if self.size == 0:
+            end()
             print("<Empty Set>")
             return
         headers = []
@@ -185,7 +208,26 @@ class Table:
             for column in headers:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
+        end()
         print(tb(tuples, headers, tablefmt='outline'))
+        print(f"{self.size} rows in set")
+        return
+    
+    def print_internal_select(self,column):
+        if self.size == 0:
+            end()
+            print("<Empty Set>")
+            return
+        columns = [token.strip() for token in column.split(',') if token]
+        tuples = []
+        for key in self.indexing.keys():
+            tuple = []
+            for column in columns:
+                tuple.append(self.indexing[key][column])
+            tuples.append(tuple)
+        end()
+        print(tb(tuples, columns, tablefmt='outline'))
+        print(f"{self.size} rows in set")
         return
 
     def describe(self):
@@ -202,1497 +244,286 @@ class Table:
             else:
                 tuple.append('FOR')
             tuples.append(tuple)
+        end()
         print(tb(tuples,headers,tablefmt='outline'))
 
+    def single_where(self,column,value,optr):
+        table = Table()
+        table.copy(self)
 
-    def copyColumns(self, tempTable, newColumns, conditions, single):
-        #arguments:
-        #tempTable = the new empty table to copy data into
-        #newColumns = the columns we are trying to select
-        #conditions = a list of the format ['a', '=', '2', 'and','b', '<', '6']
-            # Will either have size 3 or 7 dependending on whether there are two conditions or not
-        #single = an integer (0,1,2) which specifies how many conditions there are 
+        if optr == '=' and column in self.pri_keys and len(self.pri_keys) == 1:
+            key = frozenset({value})
+            if key in self.indexing:
+                table.indexing[key] = self.indexing[key]
+                table.size += 1
 
-        #If there is no where clause, copy values from relevant columns into new relation
-        if(single == 0):
-            for key, inner_dict in self.indexing.items():
-                for column, value in inner_dict.items():
-                    if key not in tempTable.indexing:
-                        tempTable.indexing[key] = {}
-                    if column in newColumns:
-                        if column not in tempTable.indexing[key]:
-                            tempTable.indexing[key][column] = value
-                        else:
-                            tempTable.indexing[key][column].add(value)
-                        tempTable.size+=1
-            tempTable.columns = list(newColumns)
-        #if only one condition, add all values from relevant columns into new relation that meet the condition
-        elif(single == 1):
-            for key, inner_dict in self.indexing.items():
-                value = inner_dict[conditions[0]]
-                if(evaluateCondition(value, conditions[1], conditions[2])):
-                    for column, val in inner_dict.items():
-                        if(column in newColumns):
-                            if(key not in tempTable.indexing):
-                                tempTable.indexing[key] = {}
-                            tempTable.indexing[key][column] = val
-                            tempTable.size+=1
-            tempTable.columns = list(newColumns)
-        #if two conditions, same idea as above but a bit more fiddly
-        elif(single == 2):
-            for key, inner_dict in self.indexing.items():
-                value1 = inner_dict[conditions[0]]
-                value2 = inner_dict[conditions[4]]
-                condition1 = evaluateCondition(value1, conditions[1], conditions[2])
+        else:
+            for key in self.indexing.keys():
+                if evaluateCondition(self.indexing[key][column],optr,value):
+                    table.indexing[key] = self.indexing[key]
+                    table.size += 1
 
-                if(conditions[3] == 'AND' and condition1):
-                    condition2 = evaluateCondition(value2, conditions[5], conditions[6])
-                    if(condition2):
-                        for column, value in inner_dict.items():
-                            if column in newColumns:
-                                if key not in tempTable.indexing:
-                                    tempTable.indexing[key] = {}
-                                tempTable.indexing[key][column] = value
-                                tempTable.size+=1
-                
-                elif(conditions[3] == 'OR' and condition1):
-                    for column, value in inner_dict.items():
-                        if column in newColumns:
-                            if key not in tempTable.indexing:
-                                tempTable.indexing[key] = {}
-                            tempTable.indexing[key][column] = value
-                            tempTable.size+=1
-
-                elif(conditions[3] == 'OR' and condition1 == False): #this could be combined with the first if but would create confusing logic so is being kept separate
-                    condition2 = evaluateCondition(value2, conditions[5], conditions[6])
-                    if(condition2):
-                        for column, value in inner_dict.items():
-                            if column in newColumns:
-                                if key not in tempTable.indexing:
-                                    tempTable.indexing[key] = {}
-                                tempTable.indexing[key][column] = value
-                                tempTable.size+=1
-
-            tempTable.columns = list(newColumns)    
-
-        return tempTable
+        return table
     
-    def max(self, column, conditions, single):
-        max = INT_MIN
+    def single_where_column(self,col1,col2,optr):
+        table = Table()
+        table.copy(self)
+        if col1 == col2 and optr in INCLUDE_OPERATOR:
+            return self
+        if col1 == col2:
+            return table
+        for key in self.indexing.keys():
+            if evaluateCondition(self.indexing[key][col1],optr,self.indexing[key][col2]):
+                table.indexing[key] = self.indexing[key]
+                table.size += 1
+        return table
+
+    def double_where(self,col1,col2,optr1,optr2,val1,val2,log):
+        key = set()
+        table = Table()
+        table.copy(self)
+        if log == 'AND':
+            if col1 in self.pri_keys and col2 in self.pri_keys and len(self.pri_keys) == 2 and col1 == col2:
+                key = frozenset({val1,val2})
+                if key in self.indexing:
+                    table.indexing[key] = self.indexing[key]
+            elif col1 in self.pri_keys:
+                table = self.single_where(col1,val1,optr1)
+                table = table.single_where(col2,val2,optr2)
+            else:
+                table = self.single_where(col2,val2,optr2)
+                table = table.single_where(col1,val1,optr1)
+        elif log == 'OR':
+            table_1 = self.single_where(col1,val1,optr1)
+            table_2 = self.single_where(col2,val2,optr2)
+            table.indexing.update(table_1.indexing)
+            table.indexing.update(table_2.indexing)
+            table.size = len(table.indexing)
+        return table
+    
+    def double_where_column(self,col1,col2,optr1,optr2,col3,col4,log):
+        table = Table()
+        table.copy(self)
+        if log == 'AND':
+            if (col1 == col3 and optr1 not in INCLUDE_OPERATOR) or (col2 == col4 and optr2 not in INCLUDE_OPERATOR):
+                return table
+            if col1 == col3 and col2 == col4:
+                return self
+            if col1 == col3:
+                return self.single_where_column(col2,col4,optr2)
+            if col2 == col4:
+                return self.single_where_column(col1,col3,optr1) 
+            return (self.single_where_column(col1,col3,optr1)).single_where_column(col2,col4,optr2)
+        elif log == 'OR':
+            if (col1 == col3 and optr1 in INCLUDE_OPERATOR) or (col2 == col4 and optr2 in INCLUDE_OPERATOR):
+                return self
+            if col1 == col3 and col2 == col4:
+                return table
+            if col1 == col3:
+                return self.single_where_column(col2,col4,optr2)
+            if col2 == col4:
+                return self.single_where_column(col1,col3,optr1)
+            table_1 = self.single_where_column(col1,col3,optr1)
+            table_2 = self.single_where_column(col2,col4,optr2)
+            table.indexing.update(table_1.indexing)
+            table.indexing.update(table_2.indexing)
+            table.size = len(table.indexing)
+            return table
+            
+    def max(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take max of a multiple columns')
         if(self.column_data[column][0] == 'STRING'):
             raise Syntax_Error('Cannot take max of a string column')
-        
-        if(single == 0):
-            for key, inner_dict in self.indexing.items():
-                if(column in self.pri_keys):
-                    if(len(self.pri_keys) == 1):
-                        value = int(next(iter(key)))
-                    else:
-                        value = inner_dict[column]
-                else:
-                    value = inner_dict[column]
-                if(value > max):
-                    max = value
-        elif(single == 1):
-            for key, inner_dict in self.indexing.items():
-                if(column in self.pri_keys):
-                    if(len(self.pri_keys) == 1):
-                        value = int(next(iter(key)))
-                    else:
-                        value = inner_dict[column]
-                else:
-                    value = inner_dict[column]
-
-                condition_value = int(inner_dict[conditions[0]])
-                if(value > max and evaluateCondition(condition_value, conditions[1], conditions[2])):
-                            max = value
-
-        elif(single == 2):
-            for key, inner_dict in self.indexing.items():
-                if(column in self.pri_keys):
-                    if(len(self.pri_keys) == 1):
-                        value = int(next(iter(key)))
-                    else:
-                        value = inner_dict[column]
-                else:
-                    value = inner_dict[column]
-                
-                condition_value_one = int(inner_dict[conditions[0]])
-                condition_value_two = int(inner_dict[conditions[4]])
-                condition1 = evaluateCondition(condition_value_one, conditions[1], conditions[2])
-
-                if(value > max):
-                    if(conditions[3] == 'AND' and condition1):
-                        condition2 = evaluateCondition(condition_value_two, conditions[5], conditions[6])
-                        if(condition2):
-                            max = value
-                    elif(conditions[3] == 'OR' and condition1):
-                        max = value
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        condition2 = evaluateCondition(condition_value_two, conditions[5], conditions[6])
-                        if(condition2):
-                            max = value
-                
-        if(max == INT_MIN):
-            tempTable = Table()
-            return tempTable
-        
-        tempTable = Table()
-        tempTable.columns = ["max(" + str(column) + ")"]
-        tempTable.indexing[0] = {}
-        tempTable.indexing[0]["max(" + str(column) + ")"] = max
-        tempTable.size = 1
-
-        return tempTable
-    
-    def nestedLoop(self, table, columns, joinConditions, self_name, table_name, single, conditions, constant, constant2):
-        # larger relation is self, smaller relation is table
-
-        tempTable = Table() 
-
-        self_join_column = joinConditions[0][1]
-        table_join_column = joinConditions[1][1]
-
-        #DONE No conditions
-        if(single == 0):
-            for key, inner_dict in table.indexing.items():
-                for key2, inner_dict2 in self.indexing.items():
-                    if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                        tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-        #DONE Single condition with a constant value
-        elif(single == 1 and constant):
-            condition_column = conditions[0][1]
-
-            #DONE If condition table is the outer relation
-            if(conditions[0][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value = inner_dict[condition_column]
-                    if(evaluateCondition(condition_value, conditions[1], conditions[2])):
-                        for key2, inner_dict2 in self.indexing.items():
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-            #DONE If condition table is the inner relation
-            else:
-                for key, inner_dict in table.indexing.items():
-                    for key2, inner_dict2 in self.indexing.items():
-                        condition_value = inner_dict2[condition_column]
-                        if(inner_dict[table_join_column] == inner_dict2[self_join_column] and evaluateCondition(condition_value, conditions[1], conditions[2])):
-                            tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-        #DONE Single condition with a variable value
-        elif(single == 1 and constant == False):
-            condition_column1 = conditions[0][1]
-            condition_column2 = conditions[2][1]
-
-            #DONE If left table is the outer relation
-            if(conditions[0][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    for key2, inner_dict2 in self.indexing.items():
-                        condition_value2 = inner_dict2[condition_column2]
-                        if(inner_dict[table_join_column] == inner_dict2[self_join_column] and evaluateCondition(condition_value1, conditions[1], condition_value2)):
-                            tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-            else:
-                for key, inner_dict in table.indexing.items():
-                    condition_value2 = inner_dict[condition_column2]
-                    for key2, inner_dict2 in self.indexing.items():
-                        condition_value1 = inner_dict2[condition_column1]
-                        if(inner_dict[table_join_column] == inner_dict2[self_join_column] and evaluateCondition(condition_value1, conditions[1], condition_value2)):
-                            tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-        #DONE Double condition with one constant and one variable value
-        elif(single == 2 and constant and constant2 == False):
-            condition_column1 = conditions[0][1]
-            condition_column1_a = conditions[4][1]
-            condition_column2_a = conditions[6][1]
-
-            #DONE
-            if(conditions[0][0] == table_name and conditions[4][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-
-                    if(conditions[3] == 'AND' and condition1):
-                        condition_value2 = inner_dict[condition_column1_a]
-                        condition_value2_a = inner_dict[condition_column2_a]
-                        condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        condition_value2 = inner_dict[condition_column1_a]
-                        condition_value2_a = inner_dict[condition_column2_a]
-                        condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE
-            elif(conditions[0][0] == self_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    for key2, inner_dict2 in self.indexing.items():
-                        condition_value1 = inner_dict2[condition_column1]
-                        condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-
-                        if(conditions[3] == 'AND' and condition1):
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition_value2_a = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    
-                        elif(conditions[3] == 'OR' and condition1):
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                        
-                        elif(conditions[3] == 'OR' and condition1 == False):
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition_value2_a = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-            
-            #DONE
-            elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-
-                    if(conditions[3] == 'AND' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition_value2_a = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], condition_column2_a)
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition_value2_a = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-            
-            #DONE
-            elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value2 = inner_dict[condition_column1_a]
-                    condition_value2_a = inner_dict[condition_column2_a]
-                    condition2 = evaluateCondition(condition_value2, conditions[5], condition_value2_a)
-
-                    if(conditions[3] == 'AND' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-        #DONE Double condition with one variable and one constant value
-        elif(single == 2 and constant == False and constant2):
-            condition_column1 = conditions[0][1]
-            condition_column2 = conditions[2][1]
-            condition_column1_a = conditions[4][1]
-
-            #DONE
-            if(conditions[0][0] == table_name and conditions[4][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition_value2_a = inner_dict[condition_column2]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2_a)
-
-                    if(conditions[3] == 'AND' and condition1):
-                        condition_value2 = inner_dict[condition_column1_a]
-                        condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        condition_value2 = inner_dict[condition_column1_a]
-                        condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE
-            elif(conditions[0][0] == self_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    for key2, inner_dict2 in self.indexing.items():
-                        condition_value1 = inner_dict2[condition_column1]
-                        condition_value2_a = inner_dict2[condition_column2]
-                        condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2_a)
-
-                        if(conditions[3] == 'AND' and condition1):
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    
-                        elif(conditions[3] == 'OR' and condition1):
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                        
-                        elif(conditions[3] == 'OR' and condition1 == False):
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-            
-            #DONE
-            elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition_value2_a = inner_dict[condition_column2]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2_a)
-
-                    if(conditions[3] == 'AND' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-            
-            #DONE
-            elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value2_a = inner_dict[condition_column1_a]
-                    condition2 = evaluateCondition(condition_value2_a, conditions[5], conditions[6])
-
-                    if(conditions[3] == 'AND' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition_value2 = inner_dict2[condition_column2]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2)
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition_value2 = inner_dict2[condition_column2]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2)
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-        #DONE Double conditions with variable values
-        elif(single == 2 and constant == False and constant2 == False):
-            condition_column1 = conditions[0][1]
-            condition_column1_a = conditions[4][1]
-
-            condition_column2 = conditions[2][1]
-            condition_column2_a = conditions[6][1]
-
-            #condition_column1 = condition_column2 AND/OR condition_column1_a = condition_column2_a
-            
-            #DONE
-            if(conditions[0][0] == table_name and conditions[4][0] == table_name):
-
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition_value2 = inner_dict[condition_column2]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2)
-
-                    if(conditions[3] == 'AND' and condition1):
-                        condition_value3 = inner_dict[condition_column1_a]
-                        condition_value4 = inner_dict[condition_column2_a]
-                        condition2 = evaluateCondition(condition_value3, conditions[5], condition_value4)
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        condition_value3 = inner_dict[condition_column1_a]
-                        condition_value4 = inner_dict[condition_column2_a]
-                        condition2 = evaluateCondition(condition_value3, conditions[5], condition_value4)
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE                    
-            elif(conditions[0][0] == self_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    for key2, inner_dict2 in self.indexing.items():
-                        condition_value1 = inner_dict2[condition_column1]
-                        condition_value2 = inner_dict2[condition_column2]
-                        condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2)
-
-                        if(conditions[3] == 'AND' and condition1):
-                            condition_value3 = inner_dict2[condition_column1_a]
-                            condition_value4 = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value3, conditions[5], condition_value4)
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    
-                        elif(conditions[3] == 'OR' and condition1):
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                        
-                        elif(conditions[3] == 'OR' and condition1 == False):
-                            condition_value3 = inner_dict2[condition_column1_a]
-                            condition_value4 = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value3, conditions[5], condition_value4)
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE
-            elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition_value2 = inner_dict[condition_column2]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2)
-
-                    if(conditions[3] == 'AND' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value3 = inner_dict2[condition_column1_a]
-                            condition_value4 = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value3, conditions[5], condition_value4)
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value3 = inner_dict2[condition_column1_a]
-                            condition_value4 = inner_dict2[condition_column2_a]
-                            condition2 = evaluateCondition(condition_value3, conditions[5], condition_value4)
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE
-            elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value3 = inner_dict[condition_column1_a]
-                    condition_value4 = inner_dict[condition_column2_a]
-                    condition2 = evaluateCondition(condition_value3, conditions[5], condition_value4)
-
-                    if(conditions[3] == 'AND' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition_value2 = inner_dict2[condition_column2]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2)
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition_value2 = inner_dict2[condition_column2]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], condition_value2)
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-    
-        #DONE Double conditions with constant values
-        elif(single == 2 and constant and constant2):
-            condition_column1 = conditions[0][1]
-            condition_column1_a = conditions[4][1]
-            
-            #DONE
-            if(conditions[0][0] == table_name and conditions[4][0] == table_name):
-
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-
-                    if(conditions[3] == 'AND' and condition1):
-                        condition_value2 = inner_dict[condition_column1_a]
-                        condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        condition_value2 = inner_dict[condition_column1_a]
-                        condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                        if(condition2):
-                            for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE                       
-            elif(conditions[0][0] == self_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    for key2, inner_dict2 in self.indexing.items():
-                        condition_value1 = inner_dict2[condition_column1]
-                        condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-
-                        if(conditions[3] == 'AND' and condition1):
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    
-                        elif(conditions[3] == 'OR' and condition1):
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                        
-                        elif(conditions[3] == 'OR' and condition1 == False):
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE 
-            elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value1 = inner_dict[condition_column1]
-                    condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-
-                    if(conditions[3] == 'AND' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1):
-                        for key2, inner_dict2 in self.indexing.items():
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition1 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value2 = inner_dict2[condition_column1_a]
-                            condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-                            if(condition2):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-            #DONE
-            elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
-                for key, inner_dict in table.indexing.items():
-                    condition_value2 = inner_dict[condition_column1_a]
-                    condition2 = evaluateCondition(condition_value2, conditions[5], conditions[6])
-
-                    if(conditions[3] == 'AND' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2):
-                        for key2, inner_dict2 in self.indexing.items():
-                            if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-                    elif(conditions[3] == 'OR' and condition2 == False):
-                        for key2, inner_dict2 in self.indexing.items():
-                            condition_value1 = inner_dict2[condition_column1]
-                            condition1 = evaluateCondition(condition_value1, conditions[1], conditions[2])
-                            if(condition1):
-                                if(inner_dict[table_join_column] == inner_dict2[self_join_column]):
-                                    tempTable.addRow(inner_dict, inner_dict2, columns, self_name, table_name)
-
-        return tempTable
-    
-    def addRowMergeScan(self, self_row, table_row, columns, self_column_names, table_column_names, self_name, table_name):
-        join_columns = []
-        global JOIN_KEY
-
-        for i in range(len(self_row)):
-            if(self_column_names[i] in columns[0]):
-                if(JOIN_KEY not in self.indexing):
-                    self.indexing[JOIN_KEY] = {}
-                column_name = (str(self_name) + '.' + str(self_column_names[i]))
-                self.indexing[JOIN_KEY][column_name] = self_row[i]
-                self.size+=1
-                join_columns.append(column_name)
-            
-        for i in range(len(table_row)):
-            if(table_column_names[i] in columns[1]):
-                if(JOIN_KEY not in self.indexing):
-                    self.indexing[JOIN_KEY] = {}
-                column_name = (str(table_name) + '.' + str(table_column_names[i]))
-                self.indexing[JOIN_KEY][column_name] = table_row[i]
-                join_columns.append(column_name)
-        
-        JOIN_KEY += 1
-
-        self.columns = join_columns
-    
-    def mergeScanHelper(self, tempTable, sorted_self, sorted_table, i, j, columns, self_column_names, table_column_names, self_name, table_name):
-        k = l = 0
-        while k < len(sorted_self) and l < len(sorted_table):
-            if sorted_self[k][i] == sorted_table[l][j]:
-                tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                k += 1
-                l += 1
-            elif sorted_self[k][i] < sorted_table[l][j]:
-                k += 1
-            else:
-                l += 1
-
-    def mergeScanHelperSingle(self, tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant):
-        condition_column_var = ''
-        condition_var_index = 0
-        condition_column = conditions[0][1]
-        if(constant == False):
-            condition_column_var = conditions[2][1]
-        
-        if(conditions[0][0] == self_name):
-            condition_index = self_column_names.index(condition_column)
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_self[k][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value_var = sorted_self[k][condition_var_index]
-                        else:
-                            condition_value_var = sorted_table[l][condition_var_index]
-                        condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
+        max_column = f"max({column})"
+        max_table = Table()
+        max_table.columns.append(max_column)
+        max_value = INT_MIN
+        max_table.size = 1
+        if (self.size == 0):
+            max_value = 'NULL'
         else:
-            condition_index = table_column_names.index(condition_column)
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_table[l][condition_index]
-                    condition_met = False
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value_var = sorted_self[k][condition_var_index]
-                        else:
-                            condition_value_var = sorted_table[l][condition_var_index]
-                        condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-
-    def mergeScanHelperOr(self, tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2):
-        condition_column_var = ''
-        condition_column = conditions[0][1]
-        condition_column2 = conditions[4][1]
-
-        if(constant == False):
-            condition_column_var = conditions[2][1]
-        if(constant2 == False):
-            condition_column_var_2 = conditions[6][1]
-
-        if(conditions[0][0] == self_name and conditions[4][0] == self_name):
-            condition_index = self_column_names.index(condition_column)
-            condition_index2 = self_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_self[k][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-        elif(conditions[0][0] == table_name and conditions[4][0] == table_name):
-            condition_index = table_column_names.index(condition_column)
-            condition_index2 = table_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_table[l][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-        elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
-            condition_index = self_column_names.index(condition_column)
-            condition_index2 = table_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_self[k][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-        elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
-            condition_index = table_column_names.index(condition_column)
-            condition_index2 = self_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_table[l][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met == False):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                            else:
-                                if(condition_met == False):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-
-    def mergeScanHelperAnd(self, tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2):
-        condition_column_var = ''
-        condition_column = conditions[0][1]
-        condition_column2 = conditions[4][1]
-
-        if(constant == False):
-            condition_column_var = conditions[2][1]
-        if(constant2 == False):
-            condition_column_var_2 = conditions[6][1]
-
-        if(conditions[0][0] == self_name and conditions[4][0] == self_name):
-            condition_index = self_column_names.index(condition_column)
-            condition_index2 = self_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_self[k][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else: 
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else:
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-        elif(conditions[0][0] == table_name and conditions[4][0] == table_name):
-            condition_index = table_column_names.index(condition_column)
-            condition_index2 = table_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_table[l][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else: 
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else:
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-        elif(conditions[0][0] == self_name and conditions[4][0] == table_name):
-            condition_index = self_column_names.index(condition_column)
-            condition_index2 = table_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_self[k][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else: 
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_self[k][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_table[l][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else:
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_table[l][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-        elif(conditions[0][0] == table_name and conditions[4][0] == self_name):
-            condition_index = table_column_names.index(condition_column)
-            condition_index2 = self_column_names.index(condition_column2)
-
-            if(constant == False and conditions[2][0] == self_name):
-                condition_var_index = self_column_names.index(condition_column_var)
-            elif(constant == False and conditions[2][0] == table_name):
-                condition_var_index = table_column_names.index(condition_column_var)
-
-            if(constant2 == False and conditions[6][0] == self_name):
-                condition_var_index_2 = self_column_names.index(condition_column_var_2)
-            elif(constant2 == False and conditions[6][0] == table_name):
-                condition_var_index_2 = table_column_names.index(condition_column_var_2)
-
-            k = l = 0
-
-            while k < len(sorted_self) and l < len(sorted_table):
-                if sorted_self[k][i] == sorted_table[l][j]:
-                    condition_value = sorted_table[l][condition_index]
-                    condition_met = False
-
-                    if(constant):
-                        condition_met = evaluateCondition(condition_value, conditions[1], conditions[2])
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else: 
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                    else:
-                        if(conditions[2][0] == self_name):
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_self[k][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-                        else:
-                            condition_value = sorted_table[l][condition_var_index]
-                            condition_value_var = sorted_table[l][condition_var_index_2]
-                            condition_met = evaluateCondition(condition_value, conditions[1], condition_value_var)
-
-                        if(constant2):
-                            if(condition_met):
-                                condition_value_2 = sorted_self[k][condition_index2]
-                                condition_met = evaluateCondition(condition_value_2, conditions[5], conditions[6])
-                            else:
-                                condition_met = False
-                        else:
-                            if(conditions[6][0] == self_name):
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 = sorted_self[k][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-                                else:
-                                    condition_met = False
-                            else:
-                                if(condition_met):
-                                    condition_value_2 = sorted_self[k][condition_index2]
-                                    condition_value_var_2 - sorted_table[l][condition_var_index_2]
-                                    condition_met = evaluateCondition(condition_value_2, conditions[5], condition_value_var_2)
-
-                    if(condition_met):
-                        tempTable.addRowMergeScan(sorted_self[k], sorted_table[l], columns, self_column_names, table_column_names, self_name, table_name)
-                    k += 1
-                    l += 1
-                elif sorted_self[k][i] < sorted_table[l][j]:
-                    k += 1
-                else:
-                    l += 1
-
-    def mergeScan(self, table, columns, joinConditions, self_name, table_name, single, conditions, constant, constant2):
-        #columns[0] = self, columns[1] = table
-
-        self_column_names = []
-        table_column_names = []
-
-        tempTable = Table()
-
-        self_column = joinConditions[1][1]
-        table_column = joinConditions[0][1]
-
-        random_self_key = next(iter(self.indexing))
-        i = 0
-        seen_self = False
-
-        for column in self.indexing[random_self_key]:
-            self_column_names.append(column)
-            if(column == self_column):
-                seen_self = True
-            if(seen_self == False):
-                i+=1
-
-        random_table_key = next(iter(table.indexing))
-        j = 0
-        seen_table = False
-
-        for column in table.indexing[random_table_key]:
-            table_column_names.append(column)
-            if(column == table_column):
-                seen_table = True
-            if(seen_table == False):
-                j+=1
-
-        self_list = [[value for value in inner_dict.values()] for inner_dict in self.indexing.values()]
-        table_list = [[value for value in inner_dict.values()] for inner_dict in table.indexing.values()]
-
-        sorted_self = sorted(self_list, key=lambda x: x[i])
-        sorted_table = sorted(table_list, key=lambda x: x[j])
-        
-        if(single == 0):
-            self.mergeScanHelper(tempTable, sorted_self, sorted_table, i, j, columns, self_column_names, table_column_names, self_name, table_name)
-        elif(single == 1):
-            self.mergeScanHelperSingle(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant)
-        elif(single == 2):
-            if(conditions[3] == 'AND'):
-                self.mergeScanHelperAnd(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2)
-            else:
-                self.mergeScanHelperOr(tempTable, sorted_self, sorted_table, i, j, columns, conditions, self_column_names, table_column_names, self_name, table_name, constant, constant2)
-   
-                
-        return tempTable 
+            for key in self.indexing.keys():
+                if self.indexing[key][column] > max_value:
+                    max_value = self.indexing[key][column]
+        max_table.indexing[0] = {max_column:max_value}
+        return max_table
     
-
-
-    def addRow(self, inner_dict, inner_dict2, columns, self_name, table_name):
-        #columns[0] = self.columns, columns[1] = table.columns
-        #inner_dict is table, inner_dict2 is self
-
-        join_columns = []
-        global JOIN_KEY
-
-        for column, value in inner_dict.items():
-            if(column in columns[1]):
-                if(JOIN_KEY not in self.indexing):
-                    self.indexing[JOIN_KEY] = {}
-                column_name = (str(table_name) + '.' + str(column))
-                self.indexing[JOIN_KEY][column_name] = value
-                self.size+=1
-                join_columns.append(column_name)
+    def min(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take min of a multiple columns')
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take min of a string column')
+        min_column = f"min({column})"
+        min_table = Table()
+        min_table.columns.append(min_column)
+        min_value = INT_MAX
+        min_table.size = 1
+        if (self.size == 0):
+            min_value = 'NULL'
+        else:
+            for key in self.indexing.keys():
+                if self.indexing[key][column] < min_value:
+                    min_value = self.indexing[key][column]
+        min_table.indexing[0] = {min_column:min_value}
+        return min_table
+    
+    def avg(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take avg of a multiple columns')
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take avg of a string column')
+        avg_column = f"avg({column})"
+        avg_table = Table()
+        avg_table.columns.append(avg_column)
+        sum_value = 0
+        avg_value = 0
+        avg_table.size = 1
+        if (self.size == 0):
+            avg_value = 'NULL'
+        else:
+            for key in self.indexing.keys():
+                sum_value += self.indexing[key][column]
+            avg_value = float(sum_value/self.size)
+        avg_table.indexing[0] = {avg_column:avg_value}
+        return avg_table
+    
+    def sum(self,column):
+        if column == '*':
+            raise Syntax_Error('Cannot take sum of a multiple columns')
+        if(self.column_data[column][0] == 'STRING'):
+            raise Syntax_Error('Cannot take avg of a string column')
+        sum_column = f"sum({column})"
+        sum_table = Table()
+        sum_table.columns.append(sum_column)
+        sum_value = 0
+        sum_table.size = 1
+        if (self.size == 0):
+            sum_value = 'NULL'
+        else:
+            for key in self.indexing.keys():
+                sum_value += self.indexing[key][column]
+        sum_table.indexing[0] = {sum_column:sum_value}
+        return sum_table
+    
+    def join_tables(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
+        # swap join condition if 
+        if tab_1 != tab_2 and tab_1 == table_2.name:
+            return self.join_tables(table_1,table_2,tab_2,col_2,tab_1,col_1)
         
-        for column, value in inner_dict2.items():
-            if(column in columns[0]):
-                if(JOIN_KEY not in self.indexing):
-                    self.indexing[JOIN_KEY] = {}
-                column_name = (str(self_name) + '.' + str(column))
-                self.indexing[JOIN_KEY][column_name] = value
-                self.size+=1
-                join_columns.append(column_name)
+        # Join column attribute, don't need to modify primary and foreign keys since the table is temporary
+        table = Table()
+        table_name_1 = table_1.name
+        table_name_2 = table_2.name
+        for key in table_1.column_data.keys():
+            table.column_data[f"{table_name_1}.{key}"] = table_1.column_data[key]
+            table.columns.append(f"{table_name_1}.{key}")
+        offset = len(table.column_data)
+        for key in table_2.column_data.keys():
+            table.column_data[f"{table_name_2}.{key}"] = table_2.column_data[key]
+            table.column_data[f"{table_name_2}.{key}"][2] += offset
+            table.columns.append(f"{table_name_2}.{key}")
 
-        JOIN_KEY += 1
+        # Join condition with same columns in one table
+        if tab_1 == tab_2 and col_1 == col_2:
+            return table.cartesian_product(table_1,table_2)
+        
+        if tab_1 == tab_2:
+            if tab_1 == table_name_1:
+                table_1 = table_1.single_where_column(col_1,col_2,'=')
+            else:
+                table_2 = table_2.single_where_column(col_1,col_2,'=')
+            return table.cartesian_product(table_1,table_2)
+   
+        return table.join_tuples(table_1,table_2,tab_1,col_1,tab_2,col_2)
 
-        self.columns = join_columns
+    def cartesian_product(self,table_1,table_2):
+        # print("Cartesian Product")
+        name_1 = table_1.name
+        name_2 = table_2.name
+        for key_1 in table_1.indexing.keys():
+            tuple_1 = {f"{name_1}." + key: value for key, value in table_1.indexing[key_1].items()}
+            for key_2 in table_2.indexing.keys():
+                new_tuple = dict()
+                tuple_2 = {f"{name_2}." + key: value for key, value in table_2.indexing[key_2].items()}
+                new_tuple.update(tuple_1)
+                new_tuple.update(tuple_2)
+                self.indexing[self.size] = new_tuple
+                self.size += 1
+        return self
 
+    def join_tuples(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
+        # print(tab_1,col_1,tab_2,col_2)
+        if (col_1 in table_1.pri_keys) and (col_2 in table_2.pri_keys):
+            return self.pri_join_tuples(table_1,table_2)
+        if (max(table_1.size,table_2.size) < 50*min(table_1.size,table_2.size)):
+            return self.mergeScan(table_1,table_2,col_1,col_2)
+        return self.nestedLoop(table_1,table_2,col_1,col_2)
+        # return self
+    
+    def pri_join_tuples(self,table_1,table_2):
+        # print("enter primary join function")
+        table_name_1 = table_1.name
+        table_name_2 = table_2.name
+        for key in table_1.indexing.keys():
+            if key in table_2.indexing.keys():
+                new_tuple = dict()
+                tuple_1 = table_1.indexing[key]
+                tuple_2 = table_2.indexing[key]
+                for col in tuple_1.keys():
+                    new_tuple[f"{table_name_1}.{col}"] = tuple_1[col]
+                for col in tuple_2.keys():
+                    new_tuple[f"{table_name_2}.{col}"] = tuple_2[col]
+                self.indexing[self.size] = new_tuple
+                self.size += 1
+        return self
+    
+    def nestedLoop(self,table_1,table_2,col_1,col_2):
+        # print('enter nested loop join')
+        table_name_1 = table_1.name
+        table_name_2 = table_2.name
+        for tuple_1 in table_1.indexing.values():
+            for tuple_2 in table_2.indexing.values():
+                # print(tuple_1,tuple_2)
+                # print(tuple_1[col_1],tuple_2[col_2])
+                if tuple_1[col_1] == tuple_2[col_2]:
+                    new_tuple = dict()
+                    for key in tuple_1.keys():
+                        new_tuple[f"{table_name_1}.{key}"] = tuple_1[key]
+                    for key in tuple_2.keys():
+                        new_tuple[f"{table_name_2}.{key}"] = tuple_2[key]
+                    self.indexing[self.size] = new_tuple
+                    self.size += 1
+        return self
+    
+    def mergeScan(self,table_1,table_2,col_1,col_2):
+        table_name_1 = table_1.name
+        table_name_2 = table_2.name
+        size_1 = table_1.size
+        size_2 = table_2.size
+        sorted_tuples_1 = sorted(table_1.indexing.items(), key=lambda x: x[1][col_1])
+        sorted_tuples_2 = sorted(table_2.indexing.items(), key=lambda x: x[1][col_2])
+        i = 0
+        j = 0
+        while i < size_1 and j < size_2:
+            left = sorted_tuples_1[i][1]
+            right = sorted_tuples_2[j][1]
+            if left[col_1] < right[col_2]:
+                i += 1
+            elif left[col_1] > right[col_2]:
+                j += 1
+            elif left[col_1] == right[col_2]:
+                k = j
+                while (k < size_2 and left[col_1] == sorted_tuples_2[k][1][col_2]):
+                    # print(k)
+                    right = sorted_tuples_2[k][1]
+                    new_tuple = dict()
+                    for key in left.keys():
+                        new_tuple[f"{table_name_1}.{key}"] = left[key]
+                    for key in right.keys():
+                        new_tuple[f"{table_name_2}.{key}"] = right[key]
+                    self.indexing[self.size] = new_tuple
+                    self.size += 1
+                    k += 1
+                i += 1
+        return self
