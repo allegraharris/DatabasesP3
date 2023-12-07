@@ -1,42 +1,12 @@
-# DatabasesP3 Design Ideas
-### **Assumption 1**: Only one valid and complete input is taken at one time
-### **Assumption 2**: All of the key words are case insensitive, but everything else is sensitive
-### **Assumption 3**: Assume we only need primary indexing structure for single key attribute
-### **table definition**: 
-#   table = [ columns, column, primary_key, indexing, tuple_1, tuple_2, ......, tuple_n ]
-#   columns = { col_1:[<type>,<primary_key[yes:1,no:0]>,<index>], col_2, ......., col_n }
-#   column = [ col_1, col_2, ......, col_n]
-#   primary = { primary_key_1, primary_key_2, ......, primary_key_n }
-#   indexing = { key_1:tuple_1, key_2:tuple_2, ......., key_n:tuple_n }
-#   tuple_1 = [ col_1.value, col_2.value, ......, col_n.value ], tuple_2, ......, tuple_n
-### **
-# create,show,describe,insert does not need query optimizer
-
-### NEW DESIGN ###
-
-# databases = { table_name : table_object, table_name2 : table_object 2...}
-
-# table (class) has attributes columns, column, primary_key, size and tuples (hashmap of hashmaps)
-
-# columns =  { col_1:[ <type>, <primary_key[yes:1,no:0]>,<index>], col_2, ......., col_n }
-# column = [ col_1, col_2, ......, col_n]
-# primary = { primary_key_1, primary_key_2, ......, primary_key_n } (set)
-# size = numTuples
-# tuples = { key1 : tuple_1, key2 : tuple2... key_n tuple_n}
-# tuple = { attribute_name : value }
-
-databases = {}
+# databases = {}
 
 import sqlparse
-import time
 import re
 from tabulate import tabulate as tb
-from BTrees._OOBTree import OOBTree
-from table import Table, databases
+from table import Table, databases, start, end, getTime
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 
-
-keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE']
+keywords = ['CREATE','SHOW','DESCRIBE','INSERT','INTO','TABLE','TABLES','REFERENCES','INT','STRING','PRIMARY','FOREIGN','KEY','WHERE','SELECT','EXECUTE','ON']
 sqlCommand = ['CREATE','SHOW','DESCRIBE','INSERT','SELECT','EXECUTE']
 Aggregate = ['MAX','MIN']
 LOGICAL_OPERATORS = ['=', '!=', '>', '>=', '<', '<=']
@@ -81,7 +51,7 @@ def readInput2():
     readInput2()
 
 def filter():
-    global sql_query, query_tokens
+    global sql_query,query_tokens
     sql_query = sqlparse.format(sql_query,reindent=False, keyword_case='upper') # reformat user input
     query_tokens = []
     parsed = sqlparse.parse(sql_query) 
@@ -92,7 +62,6 @@ def filter():
 
 ### End of Input Parsing
 
-# some special function
 # check if user input is keyword
 def is_keyword(word):
     for str in keywords:
@@ -108,6 +77,7 @@ def show_table():
     tables = []
     for table in databases.keys():
         tables.append([table])
+    end()
     if len(tables) == 0:
         print("<Empty Set>")
         return
@@ -119,6 +89,7 @@ def create_table():
     table = parse_columns(table)
     table.name = query_tokens[2]
     databases[query_tokens[2]] = table
+    end()
     print("Query OK, 0 rows affected")
     return
 
@@ -146,14 +117,12 @@ def execute(filename):
     sql_query = sqlparse.format(file_content,reindent=False, keyword_case='upper')
     sql_queries = sqlparse.parse(sql_query)
     for stmt in sql_queries:
+        start()
         query_tokens = []
         for token in stmt.tokens:
             if token.value.strip():
                 query_tokens.append(token.value)
-        start_time = time.time()
         eval_query()
-        end_time = time.time()
-        print(f"Time: {end_time-start_time:.3f}s")
         print()
     return
 
@@ -181,12 +150,17 @@ def single_where(table,where_tokens):
         raise Syntax_Error("Invalid Logical Operators")
     if optr not in STRING_OPERATORS and table.column_data[col][0] == 'STRING':
         raise Invalid_Type("Incompatiple Type for Logical Operators")
+    if val in table.column_data:
+        if table.column_data[col][0] != table.column_data[val][0]:
+            raise Invalid_Type("Incompatiple Type between columns")
+        else:
+            return table.single_where_column(col,val,optr)
     if table.column_data[col][0] == 'INT':
         try:
             val = int(val)
         except ValueError:
             raise Invalid_Type("Incompatible Type")
-    return table.single_where(col,optr,val)
+    return table.single_where(col,val,optr)
 
 def double_where(table,where_tokens):
     col1 = where_tokens[0]
@@ -200,6 +174,26 @@ def double_where(table,where_tokens):
         raise Syntax_Error("Invalid Logical Operators")
     if optr1 not in STRING_OPERATORS and table.column_data[col1][0] == 'STRING' or optr2 not in STRING_OPERATORS and table.column_data[col2][0] == 'STRING':
         raise Invalid_Type("Incompatiple Type for Logical Operators")
+    if val1 in table.column_data and val2 in table.column_data:
+        return table.double_where_column(col1,col2,optr1,optr2,val1,val2,log)
+    if val1 in table.column_data:
+        if table.column_data[col2][0] == 'INT':
+            try:
+                val2 = int(val2)
+            except ValueError:
+                raise Invalid_Type("Incompatible Type")
+        if log == 'AND':
+            return (table.single_where(col2,val2,optr2)).single_where_column(col1,val1,optr1)
+        elif log == 'OR':
+            table_1 = table.single_where_column(col1,val1,optr1)
+            table_2 = table.single_where(col2,val2,optr2)
+            table_1.indexing.update(table_2.indexing)
+            return table_1
+    if val2 in table.column_data:
+        where_tokens[0], where_tokens[4] = where_tokens[4], where_tokens[0]
+        where_tokens[1], where_tokens[5] = where_tokens[5], where_tokens[1]
+        where_tokens[2], where_tokens[6] = where_tokens[6], where_tokens[2]
+        return double_where(table,where_tokens)
     if table.column_data[col1][0] == 'INT':
         try:
             val1 = int(val1)
@@ -219,42 +213,41 @@ def join(table_1,table_2,tabs,cols):
 
 def eval_query():
     optr = query_tokens[0]
+    if optr not in sqlCommand:
+        raise Syntax_Error("Unknown SQL Command")
     if optr == 'CREATE':
         validateCreateTable(query_tokens)
         create_table()
-        return
+        getTime()
     elif optr == 'SHOW':
         if len(query_tokens) != 3 or query_tokens[1] != 'TABLES':
             raise Syntax_Error("Syntax Error: SHOW TABLES")
         show_table()
-        return
+        getTime()
     elif optr == 'DESCRIBE':
         table_name = validateDescribe(query_tokens)
         describe_table(table_name)
-        return
+        getTime()
     elif optr == 'INSERT':
         table_name = validateInsert(query_tokens)
         prev_size = databases[table_name].size
         insert(table_name,query_tokens[3][6:len(query_tokens[3])].strip())
         cur_size = databases[table_name].size
         print(f"Query OK, {cur_size-prev_size} rows affected")
-        return
+        end()
+        getTime()
+    elif optr == 'SELECT':
+        validateSelect(query_tokens)
+        getTime()
     elif optr == 'EXECUTE':
         filename = validateExecute(query_tokens)
         execute(filename)
-        return
-    elif optr == 'SELECT':
-        validateSelect(query_tokens)
-            # select()
-        return
-    raise Syntax_Error("Unknown SQL Command")
 
 
 ### VALIDATE SQL COMMAND ###
 #------------------------------------------------------------------------------#
 
 # 1. Validate CREATE TABLE
-
 
 def validateCreateTable(tokens):
     if len(tokens) != 5 or tokens[1] != 'TABLE':
@@ -365,11 +358,11 @@ def validateSelect(tokens):
         table = databases[tokens[3]]
         if tokens[4] != ';' and tokens[4].startswith('WHERE'):
             where_tokens = validateWhere([],tokens[3],tokens[4],False)
-            # print(where_tokens)
+            if len(where_tokens) != 3 and len(where_tokens) != 7:
+                raise Syntax_Error("Syntax Error: Invalid Where Condition Syntax")
             if len(where_tokens) == 3:
                 table = single_where(table,where_tokens)
             if len(where_tokens) == 7:
-                # print("entering this")
                 table = double_where(table,where_tokens)
         if '(' in tokens[1]:
             if ')' in tokens[1]:
@@ -382,6 +375,8 @@ def validateSelect(tokens):
             simple_select(validateColumns(tokens[1],tokens[3]),table)
             return
     
+    where_tokens = []
+
     if length > 5:
         join_condition = validateJoin(tokens)
         table_a = databases[tokens[3]]
@@ -393,23 +388,131 @@ def validateSelect(tokens):
                 # print(cols)
         else:
             cols = validateJoinColumns(tokens[1],[tokens[3],tokens[5]])
+        if tokens[8] != ';' and tokens[8].startswith('WHERE'):
+            where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
+            if len(where_tokens) != 3 and len(where_tokens) != 7:
+                raise Syntax_Error("Syntax Error: Invalid Where condition")
+            if len(where_tokens) == 3:
+                name_1 = where_tokens[0].split('.')[0]
+                col_1 = where_tokens[0].split('.')[1]
+                optr = where_tokens[1]
+                if "." not in where_tokens[2]:
+                    if name_1 == tokens[3]:
+                        table_a = single_where(table_a,[col_1,optr,where_tokens[2]])
+                    if name_1 == tokens[5]:
+                        table_b = single_where(table_b,[col_1,where_tokens[1],where_tokens[2]])
+                else:
+                    name_2 = where_tokens[2].split('.')[0]
+                    col_2 = where_tokens[2].split('.')[1]
+                    if name_1 == name_2:
+                        if name_1 == tokens[3]:
+                            table_a = single_where(table_a,[col_1,optr,col_2])
+                        if name_1 == tokens[5]:
+                            table_b = single_where(table_b,[col_1,optr,col_2])
+            if len(where_tokens) == 7:
+                name_1 = where_tokens[0].split('.')[0]
+                col_1 = where_tokens[0].split('.')[1]
+                name_2 = where_tokens[4].split('.')[0]
+                col_2 = where_tokens[4].split('.')[1]
+                val1 = where_tokens[2]
+                val2 = where_tokens[6]
+                optr1 = where_tokens[1]
+                optr2 = where_tokens[5]
+                log = where_tokens[3]
+                if log == 'AND':
+                    if name_1 == name_2 and "." not in where_tokens[2] and "." not in where_tokens[6]:
+                        if name_1 == tokens[3]:
+                            table_a = double_where(table_a,[col_1,optr1,val1,log,col_2,optr2,val2])
+                        if name_1 == tokens[5]:
+                            table_b = double_where(table_b,[col_1,optr1,val1,log,col_2,optr2,val2])
+
+                    else:
+                        if "." not in where_tokens[2]:
+                            if name_1 == tokens[3]:
+                                table_a = single_where(table_a,[col_1,optr1,val1])
+                            if name_1 == tokens[5]:
+                                table_b = single_where(table_b,[col_1,optr1,val1])
+                        else:
+                            name_3 = val1.split('.')[0]
+                            col_3 = val1.split('.')[1]
+                            if name_1 == name_3:
+                                if name_1 == tokens[3]:
+                                    table_a = single_where(table_a,[col_1,optr1,col_3])
+                                if name_1 == tokens[5]:
+                                    table_b = single_where(table_b,[col_1,optr1,col_3])
+                        if "." not in where_tokens[6]:
+                            if name_2 == tokens[3]:
+                                table_a = single_where(table_a,[col_2,optr2,val2])
+                            if name_2 == tokens[5]:
+                                table_b = single_where(table_b,[col_2,optr2,val2])
+                        else:
+                            name_3 = val2.split('.')[0]
+                            col_3 = val2.split('.')[1]
+                            if name_2 == name_3:
+                                if name_2 == tokens[3]:
+                                    table_a = single_where(table_a,[col_2,optr2,col_3])
+                                if name_2 == tokens[5]:
+                                    table_b = single_where(table_b,[col_2,optr2,col_3])
+                if log == 'OR':
+                    if name_1 == name_2:
+                        if name_1 == tokens[3]:
+                            if "." not in val1 and "." not in val2:
+                                table_a = double_where(table_a,[col_1,optr1,val1,log,col_2,optr2,val2])
+                            elif "." not in val1:
+                                name_3 = val2.split('.')[0]
+                                col_3 = val2.split('.')[1]
+                                if name_1 == name_3:
+                                    table_a = double_where(table_a,[col_1,optr1,val1,log,col_2,optr2,col_3])
+                            elif "." not in val2:
+                                name_3 = val1.split('.')[0]
+                                col_3 = val1.split('.')[1]
+                                if name_1 == name_3:
+                                    table_a = double_where(table_a,[col_1,optr1,col_3,log,col_2,optr2,val2])
+                            else:
+                                name_3 = val1.split('.')[0]
+                                col_3 = val1.split('.')[1]
+                                name_4 = val2.split('.')[0]
+                                col_4 = val2.split('.')[1]
+                                if name_1 == name_3 and name_1 == name_4:
+                                    table_a = double_where(table_a,[col_1,optr1,col_3,log,col_2,optr2,col_4])
+                        if name_1 == tokens[5]:
+                            if "." not in val1 and "." not in val2:
+                                table_b = double_where(table_b,[col_1,optr1,val1,log,col_2,optr2,val2])
+                            if "." not in val1:
+                                name_3 = val1.split('.')[0]
+                                col_3 = val1.split('.')[1]
+                                if name_1 == name_3:
+                                    table_b = double_where(table_b,[col_1,optr1,col_3,log,col_2,optr2,val2])
+                            if "." not in val2:
+                                name_3 = val2.split('.')[0]
+                                col_3 = val2.split('.')[1]
+                                if name_1 == name_3:
+                                    table_b = double_where(table_b,[col_1,optr1,val1,log,col_2,optr2,col_3])
+                            else:
+                                name_3 = val1.split('.')[0]
+                                col_3 = val1.split('.')[1]
+                                name_4 = val2.split('.')[0]
+                                col_4 = val2.split('.')[1]
+                                if name_1 == name_3 and name_1 == name_4:
+                                    table_b = double_where(table_b,[col_1,optr1,col_3,log,col_2,optr2,col_4])
+        print(table_a.size,table_b.size)
         table = join(table_a,table_b,join_condition[0],join_condition[1])
         if tokens[8] == ';':
             if '(' in tokens[1]:
-                # print(func)
                 aggregate_select(cols,table)
             else:
                 simple_select(cols,table)
             return
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
-            where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
             # print(where_tokens)
-            if len(where_tokens) == 5:
-                table = single_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4]])
+            if len(where_tokens) == 3:
+                table = single_where(table,where_tokens)
                 # simple_select(tokens[1],table)
-            elif len(where_tokens) == 11:
-                table = double_where(table,[f"{where_tokens[0]}.{where_tokens[2]}",where_tokens[3],where_tokens[4],where_tokens[5],f"{where_tokens[6]}.{where_tokens[8]}",where_tokens[9],where_tokens[10]])
+            elif len(where_tokens) == 7:
+                print(where_tokens)
+                table = double_where(table,where_tokens)
                 # simple_select(tokens[1],table)
+        print(table.size)
         if '(' in tokens[1]:
             aggregate_select(cols,table)
         else:
@@ -465,7 +568,6 @@ def validateJoin(tokens):
 def validateWhere(joining_tables, table_name, where_clause, join):
 
     numChars = len(where_clause)
-    # numOperators = 0
     numConditions = 0
     cols = []
 
@@ -476,20 +578,15 @@ def validateWhere(joining_tables, table_name, where_clause, join):
 
     if(numConditions > 1):
         raise Unsupported_Functionality('Unsupported functionality: can only support single two-clause logical conjunction or disjunction')
-    # if(numOperators == 1):
-    #     global SINGLE_WHERE
-    #     SINGLE_WHERE = True
-    # elif(numOperators == 2):
-    #     global DOUBLE_WHERE
-    #     DOUBLE_WHERE = True
     
     if(join):
         #isolating column names using regex
         pattern = r'(\w+)\.(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
         tables_and_columns = re.findall(pattern, cleanClause)
-        tokens = [token.strip("'") for token in re.findall(r"\b\w+\b|[=<>!ANDOR]+|'[^']*'|.", cleanClause) if token.strip()]
-        # print(tables_and_columns)
-        # print(tokens)
+        tokens = [item.strip() for item in re.split(r'\s*([=!<>]+|AND|OR)\s*', cleanClause) if item.strip()]
+        tokens = [item.strip("'") for item in tokens]
+        print(tables_and_columns)
+        print(tokens)
 
         for pair in tables_and_columns:
             if(pair[0] not in databases):
@@ -504,18 +601,20 @@ def validateWhere(joining_tables, table_name, where_clause, join):
         #isolating column names using regex
         pattern = r'\b(\w+)\s[=!><]=?\s[^ANDOR\s]+\b'
         cols = re.findall(pattern, cleanClause)
+        print(cleanClause)
+        print(cols)
         for col in cols:
             if(col not in databases[table_name].column_data):
                 raise Syntax_Error('Syntax Error: Column ' + col + ' does not exist')
         tokens = [token.strip("'") for token in re.findall(r"\b\w+\b|[=<>!ANDOR]+|'[^']*'|.", cleanClause) if token.strip()]
+        
+        print(tokens)
         return tokens
         
     # return True
     
 def validateAggregateFunction(func,table_name):
-    # table_name = ''
-    # from_table_name = ''
-    # column_name = ''
+
     pattern = r'(\w+|\([^)]*\))'
 
     #multiple columns can't be selected with an aggregate function
@@ -552,11 +651,8 @@ while quitting == False:
         # print(query_tokens)
         if query_tokens[0] == "quit":
             break
-        start_time = time.time()
+        start()
         eval_query()
-        end_time = time.time()
-        print(f"Time: {end_time-start_time:.3f}s")
-        # print(databases)
     # throw errors
     except Syntax_Error as e:
         print(f"{e}")
@@ -572,9 +668,6 @@ while quitting == False:
         print(f"{e}")
     except FileNotFoundError as e:
         print(f"{e}")
-# for table in databases.keys():
-#     databases[table].describe()
-#     databases[table].print_internal()
 
 ### END OF MAIN ###
     

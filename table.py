@@ -5,16 +5,32 @@ class Table {
     keys = set() -> set that store the column names
 """
 
-databases = {} # global variable database that stores all of the tables
-
 INT_MIN = -2147483647
 INT_MAX = 2147483648
 JOIN_KEY = 0
+INCLUDE_OPERATOR = ['=','<=','>=']
 
+import time
 import re
 from BTrees._OOBTree import OOBTree
 from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
+start_time = time.time()
+end_time = time.time()
+databases = {} # global variable database that stores all of the tables
+
+def start():
+    global start_time
+    # print("start time")
+    start_time = time.time()
+
+def end():
+    global end_time
+    # print("end time")
+    end_time = time.time()
+
+def getTime():
+    print(f"Time: {end_time-start_time:.3f}s")
 
 def evaluateCondition(value1, operator, value2):
     # print(value1,value2)
@@ -144,7 +160,6 @@ class Table:
 
     def add_tuples(self,tuples):
         tuples = [value.strip() for value in re.split(r',(?![^()]*\))',tuples)]
-        # print(tuples)
         for tuple in tuples:
             value = tuple[1:len(tuple)-1].strip()
             values = [token.strip() for token in re.split(r',', value) if token.strip()]
@@ -176,10 +191,12 @@ class Table:
                     raise Not_Exist(f"Constriant by Foreign Key from Table {self.ref_table}")
             self.indexing[frozenset(primary_keys)] = new_tuple
             self.size += 1
+        end()
         return
 
     def print_internal(self):
         if self.size == 0:
+            end()
             print("<Empty Set>")
             return
         headers = []
@@ -191,24 +208,25 @@ class Table:
             for column in headers:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
+        end()
         print(tb(tuples, headers, tablefmt='outline'))
         print(f"{self.size} rows in set")
         return
     
     def print_internal_select(self,column):
         if self.size == 0:
+            end()
             print("<Empty Set>")
             return
         columns = [token.strip() for token in column.split(',') if token]
-        # print(columns)
-        headers = columns
         tuples = []
         for key in self.indexing.keys():
             tuple = []
-            for column in headers:
+            for column in columns:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
-        print(tb(tuples, headers, tablefmt='outline'))
+        end()
+        print(tb(tuples, columns, tablefmt='outline'))
         print(f"{self.size} rows in set")
         return
 
@@ -226,12 +244,12 @@ class Table:
             else:
                 tuple.append('FOR')
             tuples.append(tuple)
+        end()
         print(tb(tuples,headers,tablefmt='outline'))
 
-    def single_where(self,column,optr,value):
+    def single_where(self,column,value,optr):
         table = Table()
         table.copy(self)
-        # print(table.columns)
 
         if optr == '=' and column in self.pri_keys and len(self.pri_keys) == 1:
             key = frozenset({value})
@@ -239,13 +257,25 @@ class Table:
                 table.indexing[key] = self.indexing[key]
                 table.size += 1
 
-
         else:
             for key in self.indexing.keys():
                 if evaluateCondition(self.indexing[key][column],optr,value):
                     table.indexing[key] = self.indexing[key]
                     table.size += 1
 
+        return table
+    
+    def single_where_column(self,col1,col2,optr):
+        table = Table()
+        table.copy(self)
+        if col1 == col2 and optr in INCLUDE_OPERATOR:
+            return self
+        if col1 == col2:
+            return table
+        for key in self.indexing.keys():
+            if evaluateCondition(self.indexing[key][col1],optr,self.indexing[key][col2]):
+                table.indexing[key] = self.indexing[key]
+                table.size += 1
         return table
 
     def double_where(self,col1,col2,optr1,optr2,val1,val2,log):
@@ -258,18 +288,49 @@ class Table:
                 if key in self.indexing:
                     table.indexing[key] = self.indexing[key]
             elif col1 in self.pri_keys:
-                table = self.single_where(col1,optr1,val1)
-                table = table.single_where(col2,optr2,val2)
+                table = self.single_where(col1,val1,optr1)
+                table = table.single_where(col2,val2,optr2)
             else:
-                table = self.single_where(col2,optr2,val2)
-                table = table.single_where(col1,optr1,val1)
+                table = self.single_where(col2,val2,optr2)
+                table = table.single_where(col1,val1,optr1)
         elif log == 'OR':
-            table_1 = self.single_where(col1,optr1,val1)
-            table_2 = self.single_where(col2,optr2,val2)
+            table_1 = self.single_where(col1,val1,optr1)
+            table_2 = self.single_where(col2,val2,optr2)
             table.indexing.update(table_1.indexing)
             table.indexing.update(table_2.indexing)
             table.size = len(table.indexing)
         return table
+    
+    def double_where_column(self,col1,col2,optr1,optr2,col3,col4,log):
+        table = Table()
+        table.copy(self)
+        if log == 'AND':
+            if (col1 == col3 and optr1 not in INCLUDE_OPERATOR) or (col2 == col4 and optr2 not in INCLUDE_OPERATOR):
+                return table
+            if col1 == col3 and col2 == col4:
+                return self
+            if col1 == col3:
+                return self.single_where_column(col2,col4,optr2)
+            if col2 == col4:
+                return self.single_where_column(col1,col3,optr1) 
+            return (self.single_where_column(col1,col3,optr1)).single_where_column(col2,col4,optr2)
+        elif log == 'OR':
+            if (col1 == col3 and optr1 in INCLUDE_OPERATOR) or (col2 == col4 and optr2 in INCLUDE_OPERATOR):
+                return self
+            if col1 == col3 and col2 == col4:
+                return table
+            if col1 == col3:
+                return self.single_where_column(col2,col4,optr2)
+            if col2 == col4:
+                return self.single_where_column(col1,col3,optr1)
+            table_1 = self.single_where_column(col1,col3,optr1)
+            table_2 = self.single_where_column(col2,col4,optr2)
+            table.indexing.update(table_1.indexing)
+            table.indexing.update(table_2.indexing)
+            table.size = len(table.indexing)
+            return table
+            
+
     
     def max2(self,column):
         if(self.column_data[column][0] == 'STRING'):
@@ -306,11 +367,11 @@ class Table:
         return min_table
     
     def join_tables(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
-        if tab_1 == tab_2:
-            raise Syntax_Error("Equal Join within conditions in one table is stupid")
-        if tab_1 == table_2.name:
-            # print("swap")
+        # swap join condition if 
+        if tab_1 != tab_2 and tab_1 == table_2.name:
             return self.join_tables(table_1,table_2,tab_2,col_2,tab_1,col_1)
+        
+        # Join column attribute, don't need to modify primary and foreign keys since the table is temporary
         table = Table()
         table_name_1 = table_1.name
         table_name_2 = table_2.name
@@ -322,7 +383,34 @@ class Table:
             table.column_data[f"{table_name_2}.{key}"] = table_2.column_data[key]
             table.column_data[f"{table_name_2}.{key}"][2] += offset
             table.columns.append(f"{table_name_2}.{key}")
+
+        # Join condition with same columns in one table
+        if tab_1 == tab_2 and col_1 == col_2:
+            return table.cartesian_product(table_1,table_2)
+        
+        if tab_1 == tab_2:
+            if tab_1 == table_name_1:
+                table_1 = table_1.single_where_column(col_1,col_2,'=')
+            else:
+                table_2 = table_2.single_where_column(col_1,col_2,'=')
+            return table.cartesian_product(table_1,table_2)
+   
         return table.join_tuples(table_1,table_2,tab_1,col_1,tab_2,col_2)
+
+    def cartesian_product(self,table_1,table_2):
+        # print("Cartesian Product")
+        name_1 = table_1.name
+        name_2 = table_2.name
+        for key_1 in table_1.indexing.keys():
+            tuple_1 = {f"{name_1}." + key: value for key, value in table_1.indexing[key_1].items()}
+            for key_2 in table_2.indexing.keys():
+                new_tuple = dict()
+                tuple_2 = {f"{name_2}." + key: value for key, value in table_2.indexing[key_2].items()}
+                new_tuple.update(tuple_1)
+                new_tuple.update(tuple_2)
+                self.indexing[self.size] = new_tuple
+                self.size += 1
+        return self
 
     def join_tuples(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
         # print(tab_1,col_1,tab_2,col_2)
@@ -380,14 +468,11 @@ class Table:
         while i < size_1 and j < size_2:
             left = sorted_tuples_1[i][1]
             right = sorted_tuples_2[j][1]
-            # print(left,right)
-            # print(left[col_1],right[col_2])
             if left[col_1] < right[col_2]:
                 i += 1
             elif left[col_1] > right[col_2]:
                 j += 1
             elif left[col_1] == right[col_2]:
-                # print("entering equal case")
                 k = j
                 while (k < size_2 and left[col_1] == sorted_tuples_2[k][1][col_2]):
                     # print(k)
@@ -401,6 +486,5 @@ class Table:
                     self.size += 1
                     k += 1
                 i += 1
-        # print(self.size)
         return self
 
