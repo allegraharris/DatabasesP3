@@ -6,7 +6,6 @@ INCLUDE_OPERATOR = ['=','<=','>=']
 
 import time
 import re
-from BTrees._OOBTree import OOBTree
 from tabulate import tabulate as tb
 from exception import Invalid_Type, Syntax_Error, Duplicate_Item, Keyword_Used, Not_Exist, Unsupported_Functionality
 start_time = time.time()
@@ -141,7 +140,7 @@ class Table:
         if col_name in self.column_data: # Duplicate column
             raise Duplicate_Item(col_name + "in the table already")
         if col_type != 'INT' and col_type != 'STRING': # invalid data type
-            raise Invalid_Type(col_name + "date type is invalid")
+            raise Invalid_Type(col_name + " data type is invalid")
         self.column_data[col_name] = [col_type,0,len(self.columns)]
         self.columns.append(col_name)
     

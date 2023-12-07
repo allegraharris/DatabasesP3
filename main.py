@@ -259,7 +259,7 @@ def validateTableName(table_name):
     if table_name in databases:
         raise Duplicate_Item("Table '" + table_name + "' exists")
     if (is_keyword(table_name)):
-        raise Syntax_Error("Syntax Error: invalid table name: " + table_name)
+        raise Keyword_Used("Keyword Used: invalid table name: " + table_name)
     if(all(char.isalnum() or char == '_' for char in table_name) != True):
         raise Syntax_Error('Syntax Error: invalid table name ' + table_name)
 
