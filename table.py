@@ -1,12 +1,6 @@
-"""
-class Table {
-    columns = list() -> list that store the column names
-    column_data = dict() -> hashtable that store column datas {key: col_name, value: col_data}
-    keys = set() -> set that store the column names
-"""
-
 INT_MIN = -2147483647
 INT_MAX = 2147483648
+INT_NULL = -2147483647
 JOIN_KEY = 0
 INCLUDE_OPERATOR = ['=','<=','>=']
 
@@ -332,17 +326,15 @@ class Table:
             
     def max(self,column):
         if column == '*':
-            raise Syntax_Error('Cannot take max of a multiple columns')
+            raise Syntax_Error('Syntax Error: Cannot take max of a multiple columns')
         if(self.column_data[column][0] == 'STRING'):
-            raise Syntax_Error('Cannot take max of a string column')
+            raise Syntax_Error('Syntax Error: Cannot take max of a string column')
         max_column = f"max({column})"
         max_table = Table()
         max_table.columns.append(max_column)
         max_value = INT_MIN
         max_table.size = 1
-        if (self.size == 0):
-            max_value = 'NULL'
-        else:
+        if(self.size > 0):
             for key in self.indexing.keys():
                 if self.indexing[key][column] > max_value:
                     max_value = self.indexing[key][column]
@@ -359,12 +351,12 @@ class Table:
         min_table.columns.append(min_column)
         min_value = INT_MAX
         min_table.size = 1
-        if (self.size == 0):
-            min_value = 'NULL'
-        else:
+        if(self.size > 0):
             for key in self.indexing.keys():
                 if self.indexing[key][column] < min_value:
                     min_value = self.indexing[key][column]
+        else:
+            min_value = INT_NULL
         min_table.indexing[0] = {min_column:min_value}
         return min_table
     
@@ -379,12 +371,12 @@ class Table:
         sum_value = 0
         avg_value = 0
         avg_table.size = 1
-        if (self.size == 0):
-            avg_value = 'NULL'
-        else:
+        if(self.size > 0):
             for key in self.indexing.keys():
                 sum_value += self.indexing[key][column]
             avg_value = float(sum_value/self.size)
+        else:
+            avg_value = INT_NULL
         avg_table.indexing[0] = {avg_column:avg_value}
         return avg_table
     
@@ -398,11 +390,11 @@ class Table:
         sum_table.columns.append(sum_column)
         sum_value = 0
         sum_table.size = 1
-        if (self.size == 0):
-            sum_value = 'NULL'
-        else:
+        if(self.size > 0):
             for key in self.indexing.keys():
                 sum_value += self.indexing[key][column]
+        else:
+            sum_value = INT_NULL
         sum_table.indexing[0] = {sum_column:sum_value}
         return sum_table
     
@@ -438,7 +430,6 @@ class Table:
         return table.join_tuples(table_1,table_2,tab_1,col_1,tab_2,col_2)
 
     def cartesian_product(self,table_1,table_2):
-        # print("Cartesian Product")
         name_1 = table_1.name
         name_2 = table_2.name
         for key_1 in table_1.indexing.keys():
@@ -453,16 +444,13 @@ class Table:
         return self
 
     def join_tuples(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
-        # print(tab_1,col_1,tab_2,col_2)
         if (col_1 in table_1.pri_keys) and (col_2 in table_2.pri_keys):
             return self.pri_join_tuples(table_1,table_2)
         if (max(table_1.size,table_2.size) < 50*min(table_1.size,table_2.size)):
             return self.mergeScan(table_1,table_2,col_1,col_2)
         return self.nestedLoop(table_1,table_2,col_1,col_2)
-        # return self
     
     def pri_join_tuples(self,table_1,table_2):
-        # print("enter primary join function")
         table_name_1 = table_1.name
         table_name_2 = table_2.name
         for key in table_1.indexing.keys():
@@ -479,13 +467,10 @@ class Table:
         return self
     
     def nestedLoop(self,table_1,table_2,col_1,col_2):
-        # print('enter nested loop join')
         table_name_1 = table_1.name
         table_name_2 = table_2.name
         for tuple_1 in table_1.indexing.values():
             for tuple_2 in table_2.indexing.values():
-                # print(tuple_1,tuple_2)
-                # print(tuple_1[col_1],tuple_2[col_2])
                 if tuple_1[col_1] == tuple_2[col_2]:
                     new_tuple = dict()
                     for key in tuple_1.keys():
@@ -515,7 +500,6 @@ class Table:
             elif left[col_1] == right[col_2]:
                 k = j
                 while (k < size_2 and left[col_1] == sorted_tuples_2[k][1][col_2]):
-                    # print(k)
                     right = sorted_tuples_2[k][1]
                     new_tuple = dict()
                     for key in left.keys():

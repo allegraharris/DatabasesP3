@@ -148,7 +148,7 @@ def single_where(table,where_tokens):
     optr = where_tokens[1]
     val = where_tokens[2]
     if optr not in LOGICAL_OPERATORS:
-        raise Syntax_Error("Invalid Logical Operators")
+        raise Syntax_Error("Syntax Error: Invalid Logical Operators")
     if optr not in STRING_OPERATORS and table.column_data[col][0] == 'STRING':
         raise Invalid_Type("Incompatiple Type for Logical Operators")
     if val in table.column_data:
@@ -172,7 +172,7 @@ def double_where(table,where_tokens):
     optr2 = where_tokens[5]
     val2 = where_tokens[6]
     if optr1 not in LOGICAL_OPERATORS or optr2 not in LOGICAL_OPERATORS:
-        raise Syntax_Error("Invalid Logical Operators")
+        raise Syntax_Error("Syntax Error: Invalid Logical Operators")
     if optr1 not in STRING_OPERATORS and table.column_data[col1][0] == 'STRING' or optr2 not in STRING_OPERATORS and table.column_data[col2][0] == 'STRING':
         raise Invalid_Type("Incompatiple Type for Logical Operators")
     if val1 in table.column_data and val2 in table.column_data:
@@ -215,7 +215,7 @@ def join(table_1,table_2,tabs,cols):
 def eval_query():
     optr = query_tokens[0]
     if optr not in sqlCommand:
-        raise Syntax_Error("Unknown SQL Command")
+        raise Syntax_Error("Syntax Error: Unknown SQL Command")
     if optr == 'CREATE':
         validateCreateTable(query_tokens)
         create_table()
@@ -345,7 +345,7 @@ def validateSelect(tokens):
     
     # check if table exist
     if ',' in tokens[3]:
-        raise Unsupported_Functionality("Select from Multi Tables is not supported")
+        raise Unsupported_Functionality("Unsupported Functionality: SELECT from multiple tables is not supported")
 
     if tokens[3] not in databases:
         raise Not_Exist(f"Table {tokens[3]} does not exist")
@@ -519,9 +519,9 @@ def validateJoin(tokens):
     if(len(tokens) < 9):
         raise Syntax_Error('Syntax Error: Invalid Join syntax')
     if tokens[4] != 'JOIN':
-        raise Unsupported_Functionality("Only Join is supported")
+        raise Unsupported_Functionality("Unsupported Functionality: Only join is supported")
     if ',' in tokens[5]:
-        raise Unsupported_Functionality("Select from Multi Tables is not supported")
+        raise Unsupported_Functionality("Unsupported Functionality: SELECT from multiple tables is not supported")
     if tokens[5] not in databases:
         raise Not_Exist(f"Table {tokens[5]} does not exist")
     if(tokens[6] != 'ON'):
@@ -536,16 +536,16 @@ def validateJoin(tokens):
     # validate the join condition
     joinPairs = [token.strip() for token in tokens[7].strip().split('=') if token.strip()]
     if len(joinPairs) != 2:
-        raise Syntax_Error("Syntax Error: Join conditions different than 2")
+        raise Syntax_Error("Syntax Error: Invalid JOIN syntax")
     if " " in joinPairs[1]:
-        raise Syntax_Error("Syntax Error: Join conditions different than 2")
+        raise Syntax_Error("Syntax Error: Invalid JOIN syntax")
 
     tabs = []
     cols = []
 
     for pair in joinPairs:
         if '.' not in pair:
-            raise Syntax_Error("Syntax Error: column names must have table names for join")
+            raise Syntax_Error("Syntax Error: Ambiguous column names")
 
         table, column = pair.strip().split('.')
         
