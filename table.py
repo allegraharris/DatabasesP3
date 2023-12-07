@@ -1,6 +1,5 @@
 INT_MIN = -2147483647
 INT_MAX = 2147483648
-INT_NULL = -2147483647
 JOIN_KEY = 0
 INCLUDE_OPERATOR = ['=','<=','>=']
 
@@ -338,6 +337,8 @@ class Table:
             for key in self.indexing.keys():
                 if self.indexing[key][column] > max_value:
                     max_value = self.indexing[key][column]
+        else:
+            max_value = 'NULL'
         max_table.indexing[0] = {max_column:max_value}
         return max_table
     
@@ -356,7 +357,7 @@ class Table:
                 if self.indexing[key][column] < min_value:
                     min_value = self.indexing[key][column]
         else:
-            min_value = INT_NULL
+            min_value = 'NULL'
         min_table.indexing[0] = {min_column:min_value}
         return min_table
     
@@ -376,7 +377,7 @@ class Table:
                 sum_value += self.indexing[key][column]
             avg_value = float(sum_value/self.size)
         else:
-            avg_value = INT_NULL
+            avg_value = 'NULL'
         avg_table.indexing[0] = {avg_column:avg_value}
         return avg_table
     
@@ -394,7 +395,7 @@ class Table:
             for key in self.indexing.keys():
                 sum_value += self.indexing[key][column]
         else:
-            sum_value = INT_NULL
+            sum_value = 'NULL'
         sum_table.indexing[0] = {sum_column:sum_value}
         return sum_table
     
