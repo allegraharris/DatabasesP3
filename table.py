@@ -445,7 +445,7 @@ class Table:
     def join_tuples(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
         if (col_1 in table_1.pri_keys and len(table_1.pri_keys) == 1) and (col_2 in table_2.pri_keys and len(table_2.pri_keys) == 1):
             return self.pri_join_tuples(table_1,table_2)
-        if (max(table_1.size,table_2.size) < 50*min(table_1.size,table_2.size)):
+        if (max(table_1.size,table_2.size) < (1.5)*min(table_1.size,table_2.size)):
             return self.mergeScan(table_1,table_2,col_1,col_2)
         return self.nestedLoop(table_1,table_2,col_1,col_2)
     
