@@ -558,7 +558,7 @@ def validateJoin(tokens):
         cols.append(column)
 
     if(databases[tabs[0]].column_data[cols[0]][0] != databases[tabs[1]].column_data[cols[1]][0]):
-        raise Syntax_Error('Syntax Error: Cannot join on columns of different types')
+        raise Invalid_Type('Invalid Type: Cannot join on columns of different types')
 
     return [tabs,cols]
 
