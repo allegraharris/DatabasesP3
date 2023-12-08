@@ -382,6 +382,9 @@ def validateSelect(tokens):
         else:
             cols = validateJoinColumns(tokens[1],[tokens[3],tokens[5]])
 
+        if tokens[8] != ';' and not tokens[8].startswith('WHERE'):
+            raise Syntax_Error("Syntax Error: Not where condition")
+
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
             where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
             if len(where_tokens) != 3 and len(where_tokens) != 7:
