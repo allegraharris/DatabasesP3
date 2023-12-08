@@ -135,9 +135,8 @@ class Table:
         return
     
     def add_column(self,col_name,col_type):
-        # print(col_name,col_type)
         if col_name in self.column_data: # Duplicate column
-            raise Duplicate_Item(col_name + "in the table already")
+            raise Duplicate_Item(col_name + " in the table already")
         if col_type != 'INT' and col_type != 'STRING': # invalid data type
             raise Invalid_Type(col_name + " data type is invalid")
         self.column_data[col_name] = [col_type,0,len(self.columns)]
@@ -187,8 +186,8 @@ class Table:
         return
 
     def print_internal(self):
+        end()
         if self.size == 0:
-            end()
             print("<Empty Set>")
             return
         headers = []
@@ -200,14 +199,13 @@ class Table:
             for column in headers:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
-        end()
         print(tb(tuples, headers, tablefmt='outline'))
         print(f"{self.size} rows in set")
         return
     
     def print_internal_select(self,column):
+        end()
         if self.size == 0:
-            end()
             print("<Empty Set>")
             return
         columns = [token.strip() for token in column.split(',') if token]
@@ -217,7 +215,6 @@ class Table:
             for column in columns:
                 tuple.append(self.indexing[key][column])
             tuples.append(tuple)
-        end()
         print(tb(tuples, columns, tablefmt='outline'))
         print(f"{self.size} rows in set")
         return
@@ -399,7 +396,7 @@ class Table:
         return sum_table
     
     def join_tables(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
-        # swap join condition if 
+        # swap join condition table names are aligned
         if tab_1 != tab_2 and tab_1 == table_2.name:
             return self.join_tables(table_1,table_2,tab_2,col_2,tab_1,col_1)
         
@@ -430,6 +427,8 @@ class Table:
         return table.join_tuples(table_1,table_2,tab_1,col_1,tab_2,col_2)
 
     def cartesian_product(self,table_1,table_2):
+        if table_1.size > table_2.size:
+            return self.cartesian_product(table_2,table_1)
         name_1 = table_1.name
         name_2 = table_2.name
         for key_1 in table_1.indexing.keys():
@@ -444,13 +443,15 @@ class Table:
         return self
 
     def join_tuples(self,table_1,table_2,tab_1,col_1,tab_2,col_2):
-        if (col_1 in table_1.pri_keys) and (col_2 in table_2.pri_keys):
+        if (col_1 in table_1.pri_keys and len(table_1.pri_keys) == 1) and (col_2 in table_2.pri_keys and len(table_2.pri_keys) == 1):
             return self.pri_join_tuples(table_1,table_2)
         if (max(table_1.size,table_2.size) < 50*min(table_1.size,table_2.size)):
             return self.mergeScan(table_1,table_2,col_1,col_2)
         return self.nestedLoop(table_1,table_2,col_1,col_2)
     
     def pri_join_tuples(self,table_1,table_2):
+        if table_1.size > table_2.size:
+            return self.pri_join_tuples(table_2,table_1)
         table_name_1 = table_1.name
         table_name_2 = table_2.name
         for key in table_1.indexing.keys():
@@ -467,6 +468,8 @@ class Table:
         return self
     
     def nestedLoop(self,table_1,table_2,col_1,col_2):
+        if table_1.size > table_2.size:
+            return self.nestedLoop(table_2,table_1)
         table_name_1 = table_1.name
         table_name_2 = table_2.name
         for tuple_1 in table_1.indexing.values():
