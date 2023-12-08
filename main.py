@@ -58,15 +58,12 @@ def filter():
             if token.value.strip():
                 query_tokens.append(token.value)
 
-### End of Input Parsing
-
 # check if user input is keyword
 def is_keyword(word):
     for str in keywords:
         if word == str:
             return True
     return False
-
 
 ## Begin evaluation functions
     
@@ -307,7 +304,6 @@ def validateExecute(tokens):
         raise Syntax_Error("Syntax Error: Execute")
     return tokens[1]
 
-
 ### SELECTION VALIDATION FUNCTIONS ###
 #------------------------------------------------------------------------------#
 
@@ -385,6 +381,10 @@ def validateSelect(tokens):
 
         else:
             cols = validateJoinColumns(tokens[1],[tokens[3],tokens[5]])
+
+        if tokens[8] != ';' and not tokens[8].startswith('WHERE'):
+            raise Syntax_Error("Syntax Error: Not where condition")
+
         if tokens[8] != ';' and tokens[8].startswith('WHERE'):
             where_tokens = validateWhere([tokens[3],tokens[5]],"",tokens[8],True)
             if len(where_tokens) != 3 and len(where_tokens) != 7:
@@ -495,6 +495,8 @@ def validateSelect(tokens):
                                     table_b = double_where(table_b,[col_1,optr1,col_3,log,col_2,optr2,col_4])
 
         table = join(table_a,table_b,join_condition[0],join_condition[1])
+
+        # verify the result and filter the where-clause that can be optimized
         if tokens[8] == ';':
             if '(' in tokens[1]:
                 aggregate_select(cols,table)
@@ -559,7 +561,7 @@ def validateJoin(tokens):
         cols.append(column)
 
     if(databases[tabs[0]].column_data[cols[0]][0] != databases[tabs[1]].column_data[cols[1]][0]):
-        raise Syntax_Error('Syntax Error: Cannot join on columns of different types')
+        raise Invalid_Type('Invalid Type: Cannot join on columns of different types')
 
     return [tabs,cols]
 
@@ -614,6 +616,9 @@ def validateAggregateFunction(func,table_name):
     if tokens[0].upper() not in Aggregate:
         raise Unsupported_Functionality('Unsupported Functionality: cannot select multiple attributes when using an aggregate function') 
     tokens[1] = tokens[1][1:len(tokens[1])-1]
+
+    if '.' not in tokens[1] and isinstance(table_name,list):
+        raise Syntax_Error(f"Syntax Error: Column {tokens[1]} is ambiguous")
     
     if '.' not in tokens[1]:
         validateColumns(tokens[1],table_name)
