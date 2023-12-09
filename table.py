@@ -469,7 +469,7 @@ class Table:
     
     def nestedLoop(self,table_1,table_2,col_1,col_2):
         if table_1.size > table_2.size:
-            return self.nestedLoop(table_2,table_1)
+            return self.nestedLoop(table_2,table_1,col_2,col_1)
         table_name_1 = table_1.name
         table_name_2 = table_2.name
         for tuple_1 in table_1.indexing.values():
